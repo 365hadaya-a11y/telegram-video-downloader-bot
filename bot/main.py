@@ -134,7 +134,7 @@ async def _serve_webhook(bot: Bot, dp: Dispatcher, services: Services) -> NoRetu
 
     webhook_handler = SimpleRequestHandler(dispatcher=dp, bot=bot, secret_token=secret)
     webhook_handler.register(app, path=settings.webhook_path)
-    setup_application(app, bot)
+    setup_application(app, dp)
 
     await bot.set_webhook(
         url=settings.webhook_url,
