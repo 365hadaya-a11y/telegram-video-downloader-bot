@@ -1,0 +1,10 @@
+services:
+  bot:
+    build: .
+    container_name: premium-video-downloader
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+      - ./temp:/app/temp
+      - ./logs:/app/logs

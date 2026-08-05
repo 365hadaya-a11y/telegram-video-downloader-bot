@@ -1,0 +1,22 @@
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Runtime data
+data/
+temp/
+logs/
+
+# Freebuff desktop app internals (never commit)
+.freebuff/
+desktop-v2.db*
+
+# OS
+.DS_Store
+Thumbs.db
