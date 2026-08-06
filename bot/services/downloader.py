@@ -42,6 +42,7 @@ from ..utils.formatters import (
     format_speed,
     progress_bar,
 )
+from ..utils.i18n import normalize_lang, t
 from ..utils.retry import retry_async
 from .queue import DownloadQueue
 from .stickers import StickerService
@@ -90,25 +91,25 @@ def _is_retryable(exc: BaseException) -> bool:
     return not any(hint in message for hint in _FATAL_HINTS)
 
 
-def _friendly_error(exc: BaseException) -> str:
+def _friendly_error(lang: str, exc: BaseException) -> str:
     """Turn a raw exception into a human-friendly, emoji-driven reason."""
     message = str(exc).lower()
 
     if isinstance(exc, DownloadCancelled):
-        return "🚫 <b>Cancelled.</b>"
+        return t(lang, "err_cancelled")
     if "private" in message:
-        return "🔒 <b>This video is private.</b>"
+        return t(lang, "err_private")
     if any(hint in message for hint in ("sign in", "login", "member")):
-        return "🔐 <b>This video requires login.</b>\nAdd a cookies file (<code>COOKIES_FILE</code>) and retry."
+        return t(lang, "err_login")
     if "age" in message:
-        return "🔞 <b>Age-restricted content isn't supported.</b>"
+        return t(lang, "err_age")
     if any(hint in message for hint in ("network", "timed out", "timeout", "connection", "unreachable", "ssl")):
-        return "🌐 <b>Network error.</b>\nPlease try again in a few minutes."
+        return t(lang, "err_network")
     if "unsupported" in message:
-        return "❓ <b>This website is not supported.</b>"
+        return t(lang, "err_unsupported")
     if any(hint in message for hint in ("unavailable", "removed", "deleted", "does not exist", "taken down")):
-        return "🗑️ <b>The video is unavailable or was removed.</b>"
-    return "⚠️ <b>Something went wrong while fetching the video.</b>"
+        return t(lang, "err_unavailable")
+    return t(lang, "err_generic")
 
 
 # ── Session ──────────────────────────────────────────────────────────────────
@@ -121,6 +122,7 @@ class DownloadSession:
     user_id: int
     chat_id: int
     url: str
+    lang: str = "ar"
     workdir: Path = field(default_factory=lambda: Path("."))
     message: Message | None = None
     card_message_id: int | None = None
@@ -151,122 +153,100 @@ class DownloadSession:
 # ── Caption builders ─────────────────────────────────────────────────────────
 
 
-def _info_card(info: dict, settings: Settings) -> str:
-    title = html.escape(info.get("title") or "Untitled")
+def _info_card(info: dict, settings: Settings, lang: str) -> str:
+    title = html.escape(info.get("title") or t(lang, "info_untitled"))
     duration = format_duration(info.get("duration"))
     size = format_size(estimate_size(info, None))
     height = best_height(info) or "?"
-    channel = html.escape(info.get("channel") or info.get("uploader") or "Unknown")
+    channel = html.escape(info.get("channel") or info.get("uploader") or t(lang, "info_unknown"))
     channel_url = info.get("channel_url") or info.get("uploader_url")
 
-    lines = [
-        "🎬 <b>Video Found!</b>",
-        "",
-        f"<blockquote>{title}</blockquote>",
-        f"👤 <b>Channel:</b> "
-        + (f'<a href="{html.escape(channel_url, quote=True)}">{channel}</a>' if channel_url else channel),
-        f"⏱️ <b>Duration:</b> {duration}",
-        f"📦 <b>Size:</b> ~{size}",
-        f"📺 <b>Max quality:</b> {height}p",
-        "",
-        "💡 <b>Choose an option below:</b>",
-    ]
-    return _clip("\n".join(lines))
+    channel_html = (
+        f'<a href="{html.escape(channel_url, quote=True)}">{channel}</a>' if channel_url else channel
+    )
+    text = t(
+        lang,
+        "info_card",
+        title=f"<blockquote>{title}</blockquote>",
+        channel=channel_html,
+        duration=duration,
+        size=size,
+        height=height,
+    )
+    return _clip(text)
 
 
-def _download_caption(payload: ProgressPayload) -> str:
+def _download_caption(lang: str, payload: ProgressPayload) -> str:
     total = payload.total_bytes
     if total:
         percent = min(100.0, payload.downloaded_bytes / total * 100)
         bar = f"<code>{progress_bar(percent)}</code> {percent:.0f}%"
     else:
-        bar = "⏳ <i>Downloading…</i>"
+        bar = t(lang, "downloading_wait")
     line = f"📥 {format_size(payload.downloaded_bytes)} / {format_size(total)}"
     meta = f"⚡ {format_speed(payload.speed)}"
     if payload.eta:
         meta += f" • ⏱️ ETA {format_duration(payload.eta)}"
     return "\n".join(
         [
-            "⬇️ <b>Downloading…</b>",
+            t(lang, "downloading"),
             bar,
             line,
             meta,
             "",
-            "💎 <i>This may take a while for large files.</i>",
+            t(lang, "dl_hint"),
         ]
     )
 
 
-def _processing_caption() -> str:
-    return "🎬 <b>Processing video…</b>\n⚙️ Merging audio & video with FFmpeg…"
+def _processing_caption(lang: str) -> str:
+    return t(lang, "processing")
 
 
-def _queued_caption(position: int, workers: int) -> str:
+def _queued_caption(lang: str, position: int, workers: int) -> str:
+    return t(lang, "queued", position=position, workers=workers)
+
+
+def _upload_caption(lang: str, percent: int, size: str) -> str:
     return (
-        "⏳ <b>You're in the download queue!</b>\n\n"
-        f"Position: <b>#{position}</b>\n"
-        f"🧵 <b>{workers}</b> worker(s) available\n\n"
-        "Your download will start automatically. 🚀"
-    )
-
-
-def _upload_caption(percent: int, size: str) -> str:
-    return (
-        "📤 <b>Uploading to Telegram…</b>\n"
+        f"{t(lang, 'uploading')}\n"
         f"<code>{progress_bar(percent)}</code> {percent}%\n"
         f"📦 {size}\n\n"
-        "🚀 Almost there!"
+        f"{t(lang, 'almost_there')}"
     )
 
 
-def _success_caption(info: dict, mode: str, height: int | None, size: int) -> str:
-    title = html.escape(info.get("title") or "Untitled")
+def _success_caption(lang: str, info: dict, mode: str, height: int | None, size: int) -> str:
+    title = html.escape(info.get("title") or t(lang, "info_untitled"))
     lines = [
-        "✅ <b>Download complete!</b>",
+        t(lang, "success"),
         "",
         f"<blockquote>{title}</blockquote>",
-        f"⏱️ Duration: {format_duration(info.get('duration'))}",
-        f"📦 Size: {format_size(size)}",
+        f"⏱️ {t(lang, 'duration_label')}: {format_duration(info.get('duration'))}",
+        f"{t(lang, 'size_label')}: {format_size(size)}",
     ]
     if mode == "audio":
-        lines.append("🎧 Format: MP3")
+        lines.append(t(lang, "format_audio"))
     else:
-        lines.append(f"🎞️ Quality: {height}p" if height else "🎞️ Quality: Best")
-    lines += ["", "✨ Thanks for using <b>Premium Downloader</b>!"]
+        lines.append(t(lang, "quality_label", height=height) if height else t(lang, "quality_best"))
+    lines += ["", t(lang, "thanks")]
     return _clip("\n".join(lines))
 
 
-def _delivered_caption(elapsed: float, size: int) -> str:
-    return _clip(
-        "🎉 <b>Delivered!</b>\n"
-        f"📤 Upload finished in <b>{elapsed:.1f}s</b>\n"
-        f"📦 {format_size(size)}\n\n"
-        "🚀 Enjoy your video!"
-    )
+def _delivered_caption(lang: str, elapsed: float, size: int) -> str:
+    return _clip(t(lang, "delivered", elapsed=elapsed, size=format_size(size)))
 
 
-def _cancelled_caption() -> str:
-    return "🚫 <b>Download cancelled.</b>\n😊 No problem — send a new link anytime!"
+def _cancelled_caption(lang: str) -> str:
+    return t(lang, "cancelled")
 
 
-def _error_card(reason: str) -> str:
-    return _clip(
-        "❌ <b>Download failed</b>\n\n"
-        f"{reason}\n\n"
-        "💡 <b>Tips:</b>\n"
-        "• Make sure the video is public\n"
-        "• Check the URL spelling\n"
-        "• Try again in a few minutes"
-    )
+def _error_card(lang: str, reason: str) -> str:
+    return _clip(t(lang, "error_card", reason=reason))
 
 
-def _too_large_card(size: str, limit_mb: int) -> str:
-    return _clip(
-        "⚠️ <b>File too large</b>\n\n"
-        f"This file is <b>{size}</b>, which exceeds the "
-        f"<b>{limit_mb} MB</b> limit.\n\n"
-        "Try a lower quality or audio-only instead. 💡"
-    )
+def _too_large_card(lang: str, size: str, limit_mb: int) -> str:
+    return _clip(t(lang, "too_large", size=size, limit_mb=limit_mb))
 
 
 # ── Service ──────────────────────────────────────────────────────────────────
@@ -293,34 +273,31 @@ class DownloadService:
 
     # -- public API ---------------------------------------------------------
 
-    async def handle_url(self, message: Message, url: str) -> None:
+    async def handle_url(self, message: Message, url: str, lang: str | None = None) -> None:
         """Entry point for a URL message. Runs the whole flow in this task."""
         user = message.from_user
         assert user is not None
         bot = message.bot
+        session_lang = normalize_lang(lang or self.settings.default_language)
 
         async with self._lock:
             if user.id in self.sessions:
                 await message.answer(
-                    "⏳ <b>You already have an active download!</b>\n"
-                    "Use the ❌ <b>Cancel</b> button or /cancel to stop it first.",
-                    reply_markup=cancel_keyboard(),
+                    t(session_lang, "active_download"),
+                    reply_markup=cancel_keyboard(session_lang),
                 )
                 return
 
             today = await self.db.today_downloads(user.id)
             if today >= self.settings.daily_download_limit:
-                await message.answer(
-                    "🚦 <b>Daily limit reached.</b>\n"
-                    f"You've used your <b>{self.settings.daily_download_limit}</b> "
-                    "downloads for today. Come back tomorrow! 🌙"
-                )
+                await message.answer(t(session_lang, "daily_limit", limit=self.settings.daily_download_limit))
                 return
 
             session = DownloadSession(
                 user_id=user.id,
                 chat_id=message.chat.id,
                 url=url,
+                lang=session_lang,
                 workdir=self.settings.temp_dir / f"job_{uuid4().hex[:10]}",
             )
             self.sessions[user.id] = session
@@ -330,12 +307,12 @@ class DownloadService:
                 user.id, user.username, user.first_name, user.last_name
             )
             await self.stickers.send(message, bot, "loading")
-            status = await message.answer("🔍 <b>Fetching video information…</b>")
+            status = await message.answer(t(session_lang, "fetching"))
             session.status_message_id = status.message_id
             await self._run_flow(session, message, bot, url)
         except Exception:
             logger.exception("Unhandled error in download flow for user %s", user.id)
-            await self._show_error_card(session, bot, "⚠️ <b>Something went wrong.</b>\nPlease try again later.")
+            await self._show_error_card(session, bot, t(session_lang, "err_unhandled"))
         finally:
             self.sessions.pop(user.id, None)
             await self._cleanup_session(session)
@@ -360,7 +337,7 @@ class DownloadService:
                 exceptions=(yt_dlp.utils.DownloadError,),
                 is_retryable=_is_retryable,
                 on_retry=lambda a, t, _e: self._safe_edit_text(
-                    session, bot, f"🔄 <b>Fetching info…</b>\nRetry {a}/{t}"
+                    session, bot, t(session.lang, "retry_info", attempt=a, total=t)
                 ),
             )
         except Exception as exc:
@@ -370,13 +347,16 @@ class DownloadService:
 
         await self._show_info_card(session, message, bot, info)
         qualities = available_qualities(info, limit=self.settings.max_quality_choices)
-        info_caption = _info_card(info, self.settings)
+        info_caption = _info_card(info, self.settings, session.lang)
 
         while True:
             # caption is passed explicitly so it is restored after the
             # quality menu / oversize warning overwrites it
             choice = await self._ask(
-                session, bot, caption=info_caption, keyboard=info_keyboard(has_qualities=bool(qualities))
+                session,
+                bot,
+                caption=info_caption,
+                keyboard=info_keyboard(has_qualities=bool(qualities), lang=session.lang),
             )
             action, _, value = choice.partition(":")
             logger.info("User %s chose %r (phase=%s)", session.user_id, choice, session.phase)
@@ -401,13 +381,13 @@ class DownloadService:
 
             estimated = estimate_size(info, height)
             if estimated and estimated > self.settings.max_file_size_bytes:
-                warn = (
-                    "⚠️ <b>This file is too large!</b>\n\n"
-                    f"Estimated size: <b>{format_size(estimated)}</b>\n"
-                    f"Limit: <b>{self.settings.max_file_size_mb} MB</b>\n\n"
-                    "Pick a smaller quality or grab the audio instead."
+                warn = t(
+                    session.lang,
+                    "too_large_warn",
+                    size=format_size(estimated),
+                    limit_mb=self.settings.max_file_size_mb,
                 )
-                choice2 = await self._ask(session, bot, caption=warn, keyboard=oversize_keyboard())
+                choice2 = await self._ask(session, bot, caption=warn, keyboard=oversize_keyboard(session.lang))
                 action2, _, _ = choice2.partition(":")
                 if action2 == "cancel":
                     await self._finish_cancelled(session, bot)
@@ -441,8 +421,8 @@ class DownloadService:
         page = 0
 
         while True:
-            keyboard = quality_keyboard(pages[page], page, len(pages), size_map)
-            caption = "📺 <b>Choose video quality</b>\n\nSelect a resolution below 👇"
+            keyboard = quality_keyboard(pages[page], page, len(pages), size_map, lang=session.lang)
+            caption = t(session.lang, "choose_quality")
             choice = await self._ask(session, bot, caption=caption, keyboard=keyboard)
             action, _, value = choice.partition(":")
 
@@ -470,7 +450,12 @@ class DownloadService:
         ticket = self.queue.register()
         position = self.queue.position(ticket)
         if position > 1:
-            await self._edit_card(session, bot, _queued_caption(position, settings.download_workers), cancel_keyboard())
+            await self._edit_card(
+                session,
+                bot,
+                _queued_caption(session.lang, position, settings.download_workers),
+                cancel_keyboard(session.lang),
+            )
         await self.queue.acquire(ticket)
         try:
             session.phase = "download"
@@ -494,16 +479,16 @@ class DownloadService:
                     on_retry=lambda a, t, _e: self._edit_card(
                         session,
                         bot,
-                        f"🔄 <b>Retrying download…</b> ({a}/{t})\n\n🌐 A network error occurred. Hang tight!",
-                        cancel_keyboard(),
+                        t(session.lang, "retry_download", attempt=a, total=t),
+                        cancel_keyboard(session.lang),
                     ),
                 )
             except Exception as exc:
                 logger.warning("Download failed for user %s: %s", session.user_id, exc)
                 if session.cancel_event.is_set():
                     return "cancel"
-                reason = _friendly_error(exc)
-                await self._edit_card(session, bot, _error_card(reason), remove_keyboard())
+                reason = _friendly_error(session.lang, exc)
+                await self._edit_card(session, bot, _error_card(session.lang, reason), remove_keyboard())
                 await self.stickers.send(session.message, bot, "error")  # type: ignore[arg-type]
                 await self.db.log_download(
                     session.user_id, session.url, mode, height, 0, info.get("duration"), False, reason
@@ -537,7 +522,12 @@ class DownloadService:
         size = path.stat().st_size
 
         if size > settings.max_file_size_bytes:
-            await self._edit_card(session, bot, _too_large_card(format_size(size), settings.max_file_size_mb), remove_keyboard())
+            await self._edit_card(
+                session,
+                bot,
+                _too_large_card(session.lang, format_size(size), settings.max_file_size_mb),
+                remove_keyboard(),
+            )
             await self.stickers.send(session.message, bot, "error")  # type: ignore[arg-type]
             await self.db.log_download(session.user_id, session.url, mode, height, size, info.get("duration"), False, "File too large")
             return "error"
@@ -550,7 +540,7 @@ class DownloadService:
             if session.cancel_event.is_set():
                 return "cancel"
             percent = round(i / steps * 100)
-            await self._edit_card(session, bot, _upload_caption(percent, size_str), cancel_keyboard())
+            await self._edit_card(session, bot, _upload_caption(session.lang, percent, size_str), cancel_keyboard(session.lang))
             await asyncio.sleep(settings.upload_progress_seconds / steps)
         if session.cancel_event.is_set():
             return "cancel"
@@ -560,7 +550,7 @@ class DownloadService:
         await self._edit_card(
             session,
             bot,
-            "📤 <b>Finalising upload…</b>\n\nThis may take a moment for large files. ⏳",
+            t(session.lang, "finalising"),
             remove_keyboard(),
         )
 
@@ -574,7 +564,7 @@ class DownloadService:
             thumbnail = FSInputFile(session.thumb_path)
 
         duration = info.get("duration")
-        caption = _success_caption(info, mode, height, size)
+        caption = _success_caption(session.lang, info, mode, height, size)
         try:
             if mode == "audio":
                 await session.message.answer_audio(
@@ -600,9 +590,7 @@ class DownloadService:
             await self._edit_card(
                 session,
                 bot,
-                "⚠️ <b>Telegram rejected the file.</b>\n\n"
-                "The standard Bot API only allows uploads up to <b>50 MB</b>.\n"
-                "Try a lower quality, audio-only, or a local Bot API server.",
+                t(session.lang, "telegram_rejected"),
                 remove_keyboard(),
             )
             await self.stickers.send(session.message, bot, "error")  # type: ignore[arg-type]
@@ -610,11 +598,11 @@ class DownloadService:
             return "error"
 
         if session.cancel_event.is_set():  # cancelled via /cancel during the send
-            await self._edit_card(session, bot, _cancelled_caption(), remove_keyboard())
+            await self._edit_card(session, bot, _cancelled_caption(session.lang), remove_keyboard())
             return "cancel"
 
         elapsed = time.monotonic() - started
-        await self._edit_card(session, bot, _delivered_caption(elapsed, size), remove_keyboard())
+        await self._edit_card(session, bot, _delivered_caption(session.lang, elapsed, size), remove_keyboard())
         await self.stickers.send(session.message, bot, "success")  # type: ignore[arg-type]
         await self.stickers.send(session.message, bot, "celebration")  # type: ignore[arg-type]
         await self.db.log_download(session.user_id, session.url, mode, height, size, info.get("duration"), True)
@@ -631,11 +619,11 @@ class DownloadService:
             if payload.status == "done":
                 return
             if payload.status == "finished":
-                await self._edit_card(session, bot, _processing_caption(), cancel_keyboard())
+                await self._edit_card(session, bot, _processing_caption(session.lang), cancel_keyboard(session.lang))
                 continue
             now = time.monotonic()
             if now - last_edit >= self.settings.progress_update_seconds:
-                await self._edit_card(session, bot, _download_caption(payload), cancel_keyboard())
+                await self._edit_card(session, bot, _download_caption(session.lang, payload), cancel_keyboard(session.lang))
                 last_edit = now
 
     # -- card management -----------------------------------------------------
@@ -702,9 +690,9 @@ class DownloadService:
             pass
 
     async def _show_info_card(self, session: DownloadSession, message: Message, bot: Bot, info: dict) -> None:
-        caption = _info_card(info, self.settings)
+        caption = _info_card(info, self.settings, session.lang)
         qualities = available_qualities(info, limit=self.settings.max_quality_choices)
-        keyboard = info_keyboard(has_qualities=bool(qualities))
+        keyboard = info_keyboard(has_qualities=bool(qualities), lang=session.lang)
 
         session.thumb_path = await self._fetch_thumbnail(info, session.workdir)
 
@@ -763,15 +751,15 @@ class DownloadService:
 
     async def _finish_cancelled(self, session: DownloadSession, bot: Bot) -> None:
         session.cancel_event.set()
-        await self._edit_card(session, bot, _cancelled_caption(), remove_keyboard())
+        await self._edit_card(session, bot, _cancelled_caption(session.lang), remove_keyboard())
 
     async def _fail(self, session: DownloadSession, message: Message, bot: Bot, exc: BaseException) -> None:
-        reason = _friendly_error(exc)
+        reason = _friendly_error(session.lang, exc)
         await self.stickers.send(message, bot, "error")
         if session.card_message_id is not None:
-            await self._edit_card(session, bot, _error_card(reason), remove_keyboard())
+            await self._edit_card(session, bot, _error_card(session.lang, reason), remove_keyboard())
         else:
-            await message.answer(_error_card(reason))
+            await message.answer(_error_card(session.lang, reason))
         if session.status_message_id is not None:
             try:
                 await bot.delete_message(session.chat_id, session.status_message_id)

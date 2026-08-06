@@ -66,8 +66,36 @@ class Database:
         self._conn.row_factory = aiosqlite.Row
         await self.conn.execute("PRAGMA journal_mode=WAL")
         await self.conn.executescript(_SCHEMA)
+        await self._migrate()
         await self.conn.commit()
         logger.info("Database ready at %s", self.path)
+
+    async def _migrate(self) -> None:
+        """Add missing columns to already-created databases (idempotent)."""
+        cursor = await self.conn.execute("PRAGMA table_info(users)")
+        columns = {str(row["name"]) for row in await cursor.fetchall()}
+        if "lang" not in columns:
+            await self.conn.execute("ALTER TABLE users ADD COLUMN lang TEXT DEFAULT 'ar'")
+            logger.info("Migrated users table: added lang column")
+
+    # ── Language ──────────────────────────────────────────────────
+
+    async def get_user_lang(self, user_id: int) -> str | None:
+        cursor = await self.conn.execute("SELECT lang FROM users WHERE id = ?", (user_id,))
+        row = await cursor.fetchone()
+        return str(row["lang"]) if row and row["lang"] else None
+
+    async def set_user_lang(self, user_id: int, lang: str) -> None:
+        await self.conn.execute(
+            """
+            INSERT INTO users (id, lang, last_seen) VALUES (?, ?, datetime('now'))
+            ON CONFLICT(id) DO UPDATE SET
+                lang      = excluded.lang,
+                last_seen = datetime('now')
+            """,
+            (user_id, lang),
+        )
+        await self.conn.commit()
 
     async def close(self) -> None:
         if self._conn is not None:

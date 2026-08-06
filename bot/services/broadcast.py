@@ -17,6 +17,7 @@ from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 from ..database.db import Database
+from ..utils.i18n import LANG_AR, t
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +34,10 @@ class BroadcastCB(CallbackData, prefix="bc"):
     action: str
 
 
-def broadcast_cancel_keyboard() -> InlineKeyboardMarkup:
+def broadcast_cancel_keyboard(lang: str = LANG_AR) -> InlineKeyboardMarkup:
+    label = t(lang, "btn_stop_broadcast")
     return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="🛑 Stop Broadcast", callback_data=BroadcastCB(action="cancel").pack())]
-        ]
+        inline_keyboard=[[InlineKeyboardButton(text=label, callback_data=BroadcastCB(action="cancel").pack())]]
     )
 
 

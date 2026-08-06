@@ -4,6 +4,8 @@
 
 **A polished, production-ready Telegram bot that downloads videos from 1000+ websites — with a premium animated UX.**
 
+> 🌐 **Bilingual** — fully translated into **العربية (Arabic)** and **English**. Users switch anytime with `/language`; the choice is remembered per user.
+
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Aiogram](https://img.shields.io/badge/Aiogram-3.x-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)
 ![yt-dlp](https://img.shields.io/badge/yt--dlp-latest-red?style=for-the-badge)
@@ -33,6 +35,7 @@
 | 🔒 **Forced channel** | Mandatory channel subscription gate before using the bot (admins exempt) |
 | 🎨 **Animated stickers** | Welcome / loading / downloading / uploading / success / error / celebration |
 | 🐳 **Docker-ready** | One command to deploy |
+| 🌐 **Bilingual** | Full **العربية + English** translations, per-user `/language` picker |
 
 ---
 
@@ -124,6 +127,7 @@ All settings live in `.env` (see [`.env.example`](.env.example) for full comment
 |---|---|---|
 | `BOT_TOKEN` | — | **Required.** Token from @BotFather |
 | `ADMIN_IDS` | `[]` | JSON list, e.g. `[111111111, 222222222]` |
+| `DEFAULT_LANGUAGE` | `ar` | Default bot language: `ar` (العربية) or `en` (English) |
 | `MAX_FILE_SIZE_MB` | `2000` | Download size limit. ⚠️ Standard Bot API caps uploads at **50 MB** — use a [local Bot API server](https://core.telegram.org/bots/api#using-a-local-bot-api-server) for bigger files |
 | `DOWNLOAD_WORKERS` | `2` | Concurrent downloads (queue depth) |
 | `PROGRESS_UPDATE_SECONDS` | `2.5` | Progress bar refresh interval |
@@ -163,6 +167,7 @@ No stickers configured? No problem — the bot gracefully falls back to premium 
 |---|---|---|
 | `/start` | everyone | Welcome + features |
 | `/help` | everyone | Usage guide |
+| `/language` | everyone | Switch between العربية and English 🌐 |
 | `/cancel` | everyone | Cancel the active download |
 | `/broadcast <text>` | admins | Announce text — or reply to a photo/video/file to announce media — to every user (live progress + 🛑 stop) |
 | `/stats` | admins | Users, downloads, queue, temp usage |
@@ -182,7 +187,7 @@ bot/
 ├── database/
 │   └── db.py            # aiosqlite: users, stickers, download log
 ├── handlers/
-│   ├── start.py         # /start /help /cancel
+│   ├── start.py         # /start /help /cancel /language
 │   ├── download.py      # URL messages, hints, unknown commands
 │   ├── callbacks.py     # inline keyboard decisions
 │   └── admin.py         # /stats /setsticker /resetsticker /stickers
@@ -199,6 +204,7 @@ bot/
 │   └── cleanup.py       # temp sweeper + log pruning
 └── utils/
     ├── formatters.py    # sizes, durations, progress bars, URLs
+    ├── i18n.py          # bilingual strings (العربية + English)
     ├── logger.py        # rotating file + console logging
     └── retry.py         # async retry with exponential back-off
 ```

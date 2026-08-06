@@ -26,29 +26,39 @@ from .services.queue import DownloadQueue
 from .services.stickers import StickerService
 from .services.subscription import ForcedSubscription
 from .services.ytdlp import YtDlpService
+from .utils.i18n import t as tr
 from .utils.logger import setup_logging
 
 logger = logging.getLogger("bot")
 
-DEFAULT_COMMANDS = [
-    BotCommand(command="start", description="🚀 Start the bot"),
-    BotCommand(command="help", description="❓ Help"),
-    BotCommand(command="cancel", description="🚫 Cancel current download"),
-]
+def _default_commands(lang: str) -> list[BotCommand]:
+    return [
+        BotCommand(command="start", description=tr(lang, "cmd_start")),
+        BotCommand(command="help", description=tr(lang, "cmd_help")),
+        BotCommand(command="language", description=tr(lang, "cmd_language")),
+        BotCommand(command="cancel", description=tr(lang, "cmd_cancel")),
+    ]
 
-ADMIN_COMMANDS = [
-    *DEFAULT_COMMANDS,
-    BotCommand(command="broadcast", description="📣 Broadcast announcement"),
-    BotCommand(command="stats", description="📊 Bot statistics"),
-    BotCommand(command="stickers", description="🎨 Sticker mapping"),
-    BotCommand(command="setsticker", description="🎨 Set a flow sticker"),
-]
+
+def _admin_commands(lang: str) -> list[BotCommand]:
+    return [
+        *_default_commands(lang),
+        BotCommand(command="broadcast", description=tr(lang, "cmd_broadcast")),
+        BotCommand(command="stats", description=tr(lang, "cmd_stats")),
+        BotCommand(command="stickers", description=tr(lang, "cmd_stickers")),
+        BotCommand(command="setsticker", description=tr(lang, "cmd_setsticker")),
+    ]
 
 
 async def _set_commands(bot: Bot, services: Services) -> None:
-    await bot.set_my_commands(DEFAULT_COMMANDS)
+    default_lang = services.settings.default_language
+    await bot.set_my_commands(_default_commands(default_lang))
     for admin_id in services.settings.admin_ids:
-        await bot.set_my_commands(ADMIN_COMMANDS, scope=BotCommandScopeChat(chat_id=admin_id))
+        admin_lang = await services.db.get_user_lang(admin_id)
+        await bot.set_my_commands(
+            _admin_commands(admin_lang or default_lang),
+            scope=BotCommandScopeChat(chat_id=admin_id),
+        )
 
 
 async def main() -> None:

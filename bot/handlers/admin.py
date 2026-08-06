@@ -1,4 +1,4 @@
-"""Admin-only commands: /stats, /setsticker, /resetsticker, /stickers."""
+"""Admin-only commands: /stats, /setsticker, /resetsticker, /stickers, /broadcast (bilingual)."""
 
 from __future__ import annotations
 
@@ -10,11 +10,12 @@ from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 
+from ..keyboards.inline import remove_keyboard
 from ..services import Services
 from ..services.broadcast import broadcast_cancel_keyboard
 from ..services.stickers import STICKER_KEYS
 from ..utils.formatters import format_size
-from ..keyboards.inline import remove_keyboard
+from ..utils.i18n import normalize_lang, t
 
 logger = logging.getLogger(__name__)
 
@@ -25,15 +26,17 @@ def _is_admin(services: Services, user_id: int) -> bool:
     return user_id in services.settings.admin_ids
 
 
-def _denied() -> str:
-    return "⛔ <b>Admins only.</b>\nThis command is restricted to the bot owner."
+async def _admin_lang(services: Services, user_id: int) -> str:
+    stored = await services.db.get_user_lang(user_id)
+    return normalize_lang(stored or services.settings.default_language)
 
 
 @router.message(Command("stats"))
 async def on_stats(message: Message, services: Services) -> None:
     assert message.from_user is not None
+    lang = await _admin_lang(services, message.from_user.id)
     if not _is_admin(services, message.from_user.id):
-        await message.answer(_denied())
+        await message.answer(t(lang, "admins_only"))
         return
 
     users = await services.db.users_count()
@@ -43,16 +46,17 @@ async def on_stats(message: Message, services: Services) -> None:
     queued = services.queue.waiting_count
     temp_size = format_size(services.cleanup.temp_dir_size())
 
-    text = (
-        "📊 <b>Bot Statistics</b>\n\n"
-        f"👥 Users: <b>{users}</b>\n"
-        f"✅ Total downloads: <b>{total}</b>\n"
-        f"📅 Downloads today: <b>{today}</b>\n"
-        f"⚙️ Active sessions: <b>{active}</b>\n"
-        f"⏳ Queued downloads: <b>{queued}</b>\n"
-        f"🗑️ Temp usage: <b>{temp_size}</b>\n\n"
-        f"🧵 Workers: <b>{services.settings.download_workers}</b>\n"
-        f"🚦 Daily limit/user: <b>{services.settings.daily_download_limit}</b>"
+    text = t(
+        lang,
+        "stats",
+        users=users,
+        total=total,
+        today=today,
+        active=active,
+        queued=queued,
+        temp_size=temp_size,
+        workers=services.settings.download_workers,
+        limit=services.settings.daily_download_limit,
     )
     await message.answer(text)
 
@@ -60,53 +64,52 @@ async def on_stats(message: Message, services: Services) -> None:
 @router.message(Command("setsticker"))
 async def on_set_sticker(message: Message, command: CommandObject, services: Services) -> None:
     assert message.from_user is not None
+    lang = await _admin_lang(services, message.from_user.id)
     if not _is_admin(services, message.from_user.id):
-        await message.answer(_denied())
+        await message.answer(t(lang, "admins_only"))
         return
 
     key = (command.args or "").strip().lower()
     if key not in STICKER_KEYS:
-        await message.answer(
-            "🎨 <b>Usage:</b> reply to a sticker with\n"
-            f"<code>/setsticker {' | '.join(STICKER_KEYS)}</code>\n\n"
-            "Example:\n<code>/setsticker welcome</code>"
-        )
+        await message.answer(t(lang, "setsticker_usage", keys=" | ".join(STICKER_KEYS)))
         return
 
     sticker = message.reply_to_message.sticker if message.reply_to_message else None
     if sticker is None:
-        await message.answer("ℹ️ <b>Reply to a sticker</b> with this command to save it.")
+        await message.answer(t(lang, "reply_sticker"))
         return
 
     await services.db.set_sticker(key, sticker.file_id)
-    await message.answer(f"✅ Sticker <b>{key}</b> saved! It will be used from now on. ✨")
+    await message.answer(t(lang, "sticker_saved", key=key))
 
 
 @router.message(Command("resetsticker"))
 async def on_reset_sticker(message: Message, command: CommandObject, services: Services) -> None:
     assert message.from_user is not None
+    lang = await _admin_lang(services, message.from_user.id)
     if not _is_admin(services, message.from_user.id):
-        await message.answer(_denied())
+        await message.answer(t(lang, "admins_only"))
         return
 
     key = (command.args or "").strip().lower()
     if key not in STICKER_KEYS:
-        await message.answer(f"🎨 Usage: <code>/resetsticker {' | '.join(STICKER_KEYS)}</code>")
+        await message.answer(t(lang, "resetsticker_usage", keys=" | ".join(STICKER_KEYS)))
         return
 
     await services.db.delete_sticker(key)
-    await message.answer(f"🗑️ Sticker <b>{key}</b> reset to default behaviour.")
+    await message.answer(t(lang, "sticker_reset", key=key))
 
 
 @router.message(Command("broadcast"))
 async def on_broadcast(message: Message, command: CommandObject, services: Services) -> None:
     """النشرة الإعلانية — announce text or media to every registered user."""
     assert message.from_user is not None
+    lang = await _admin_lang(services, message.from_user.id)
     if not _is_admin(services, message.from_user.id):
-        await message.answer(_denied())
+        await message.answer(t(lang, "admins_only"))
         return
     if services.broadcast.running:
-        await message.answer("📣 A broadcast is already running. Wait for it to finish or press 🛑 Stop.")
+        await message.answer(t(lang, "broadcast_running"))
         return
 
     text = (command.args or "").strip()
@@ -124,17 +127,12 @@ async def on_broadcast(message: Message, command: CommandObject, services: Servi
         )
     )
     if not text and not has_media:
-        await message.answer(
-            "📣 <b>Usage:</b>\n"
-            "<code>/broadcast &lt;text&gt;</code> — announce a text message\n"
-            "<code>/broadcast</code> <i>(reply to a photo/video/file)</i> — announce media\n\n"
-            "It will be sent to <b>every user</b> who started the bot."
-        )
+        await message.answer(t(lang, "broadcast_usage"))
         return
 
     status_message = await message.answer(
-        "📣 <b>Broadcasting…</b>\n\n⏳ Preparing…",
-        reply_markup=broadcast_cancel_keyboard(),
+        t(lang, "broadcasting"),
+        reply_markup=broadcast_cancel_keyboard(lang),
     )
     bot = message.bot
     from_chat_id = message.chat.id
@@ -153,19 +151,21 @@ async def on_broadcast(message: Message, command: CommandObject, services: Servi
                     raise
 
     async def progress(done: int, total: int, result) -> None:
-        caption = (
-            "📣 <b>Broadcasting…</b>\n\n"
-            f"✅ Sent: <b>{result.sent}</b>\n"
-            f"❌ Failed: <b>{result.failed}</b>\n"
-            f"🚫 Blocked: <b>{result.blocked}</b>\n\n"
-            f"⏳ {done}/{total}"
+        caption = t(
+            lang,
+            "broadcast_progress",
+            sent=result.sent,
+            failed=result.failed,
+            blocked=result.blocked,
+            done=done,
+            total=total,
         )
         try:
             await bot.edit_message_text(
                 text=caption,
                 chat_id=status_message.chat.id,
                 message_id=status_message.message_id,
-                reply_markup=broadcast_cancel_keyboard(),
+                reply_markup=broadcast_cancel_keyboard(lang),
             )
         except TelegramAPIError:
             pass
@@ -176,7 +176,7 @@ async def on_broadcast(message: Message, command: CommandObject, services: Servi
         logger.exception("Broadcast crashed unexpectedly")
         try:
             await bot.edit_message_text(
-                text="⚠️ <b>Broadcast crashed.</b>\nAn unexpected error interrupted the announcement.",
+                text=t(lang, "broadcast_crashed"),
                 chat_id=status_message.chat.id,
                 message_id=status_message.message_id,
                 reply_markup=remove_keyboard(),
@@ -186,13 +186,15 @@ async def on_broadcast(message: Message, command: CommandObject, services: Servi
         return
 
     if result.cancelled:
-        final = "🛑 <b>Broadcast stopped.</b>\n\n"
+        final = t(lang, "broadcast_stopped")
     else:
-        final = "✅ <b>Broadcast finished!</b>\n\n"
-    final += (
-        f"📨 Sent: <b>{result.sent}</b>\n"
-        f"❌ Failed: <b>{result.failed}</b>\n"
-        f"🚫 Blocked & removed: <b>{result.blocked}</b>"
+        final = t(lang, "broadcast_finished")
+    final += t(
+        lang,
+        "broadcast_summary",
+        sent=result.sent,
+        failed=result.failed,
+        blocked=result.blocked,
     )
     try:
         await bot.edit_message_text(
@@ -208,20 +210,18 @@ async def on_broadcast(message: Message, command: CommandObject, services: Servi
 @router.message(Command("stickers"))
 async def on_list_stickers(message: Message, services: Services) -> None:
     assert message.from_user is not None
+    lang = await _admin_lang(services, message.from_user.id)
     if not _is_admin(services, message.from_user.id):
-        await message.answer(_denied())
+        await message.answer(t(lang, "admins_only"))
         return
 
     mapping = await services.db.list_stickers()
     if not mapping:
-        await message.answer(
-            "🎨 <b>No stickers configured yet.</b>\n"
-            "Reply to a sticker with <code>/setsticker &lt;key&gt;</code> to assign one.\n\n"
-            f"Available keys: <code>{' '.join(STICKER_KEYS)}</code>"
-        )
+        await message.answer(t(lang, "no_stickers", keys=" ".join(STICKER_KEYS)))
         return
 
-    lines = ["🎨 <b>Sticker mapping</b>\n"]
+    lines = [t(lang, "sticker_mapping")]
     for key in STICKER_KEYS:
-        lines.append(f"• <b>{key}</b>: {'✅ set' if key in mapping else '— not set'}")
+        status = t(lang, "sticker_set") if key in mapping else t(lang, "sticker_not_set")
+        lines.append(f"• <b>{key}</b>: {status}")
     await message.answer("\n".join(lines))

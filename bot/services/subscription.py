@@ -14,6 +14,8 @@ from aiogram.exceptions import TelegramAPIError, TelegramBadRequest
 from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from ..utils.i18n import LANG_AR, t
+
 logger = logging.getLogger(__name__)
 
 _MEMBER_STATUSES = (
@@ -45,22 +47,17 @@ class ForcedSubscription:
     def channel_ref(self) -> str:
         return self.channel or ""
 
-    def join_keyboard(self) -> InlineKeyboardMarkup:
+    def join_keyboard(self, lang: str = LANG_AR) -> InlineKeyboardMarkup:
         rows: list[list[InlineKeyboardButton]] = []
         if self.channel:
             url = f"https://t.me/{self.channel.lstrip('@').split('?')[0]}"
             if not self.channel.lstrip("-").isdigit():  # only @usernames get a link
-                rows.append([InlineKeyboardButton(text="🔗 Join Channel", url=url)])
-        rows.append([InlineKeyboardButton(text="✅ I've Joined", callback_data=JoinCB().pack())])
+                rows.append([InlineKeyboardButton(text=t(lang, "join_channel_btn"), url=url)])
+        rows.append([InlineKeyboardButton(text=t(lang, "joined_btn"), callback_data=JoinCB().pack())])
         return InlineKeyboardMarkup(inline_keyboard=rows)
 
-    def join_message(self) -> str:
-        return (
-            "🔒 <b>Channel subscription required</b>\n\n"
-            f"To use the bot, please join our channel first:\n"
-            f"👉 <b>{self.channel_ref}</b>\n\n"
-            "Then press the button below to verify. ✅"
-        )
+    def join_message(self, lang: str = LANG_AR) -> str:
+        return t(lang, "join_message", channel=self.channel_ref)
 
     async def require_membership(self, bot: Bot, user_id: int, admin_ids: list[int]) -> bool:
         """Admins are always allowed; everyone else must have joined the channel."""

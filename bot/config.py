@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     # ── Core ──────────────────────────────────────────────────────
     bot_token: str = Field(..., description="Telegram bot token from @BotFather")
     admin_ids: list[int] = Field(default_factory=list, description="Admin Telegram user IDs")
+    # "ar" (default) or "en" — the bot is bilingual; users can switch via /language
+    default_language: str = "ar"
 
     # ── Storage ───────────────────────────────────────────────────
     db_path: Path = BASE_DIR / "data" / "bot.db"

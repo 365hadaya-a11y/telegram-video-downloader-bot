@@ -46,6 +46,15 @@ from bot.utils.formatters import (
     format_size,
     progress_bar,
 )
+from bot.utils.i18n import (
+    _STRINGS,
+    LANG_AR,
+    LANG_EN,
+    DEFAULT_LANG,
+    lang_name,
+    normalize_lang,
+    t,
+)
 from bot.utils.retry import retry_async
 
 results: list[tuple[str, bool]] = []
@@ -93,6 +102,32 @@ cb = DownloadCB.unpack(packed)
 check("callback round-trip", (cb.action, cb.value) == ("quality", "1080"))
 check("join cb pack", JoinCB().pack().startswith("join:"))
 check("broadcast cb pack", BroadcastCB(action="cancel").pack().startswith("bc:"))
+
+# ── i18n (bilingual) ──
+check("i18n default ar", DEFAULT_LANG == LANG_AR)
+check("i18n ar welcome", "أهلاً" in t(LANG_AR, "welcome", name="سارة", lang_name="العربية"))
+check("i18n en welcome", "Welcome" in t(LANG_EN, "welcome", name="Sara", lang_name="English"))
+check("i18n normalize", normalize_lang("EN") == LANG_EN and normalize_lang("xx") == LANG_AR and normalize_lang(None) == LANG_AR)
+check("i18n lang_name", lang_name("ar") == "العربية" and lang_name("en") == "English")
+check("i18n buttons ar", t(LANG_AR, "btn_cancel") == "❌ إلغاء")
+check("i18n buttons en", t(LANG_EN, "btn_cancel") == "❌ Cancel")
+check("i18n err ar", "تسجيل" in t(LANG_AR, "err_login"))
+check("i18n every key both langs", all({k[0] for k in _STRINGS if k[1] == key} == {LANG_AR, LANG_EN} for key in {k[1] for k in _STRINGS}))
+
+# Every template must be VALID str.format syntax. Missing kwargs raise
+# KeyError (expected — callers pass them); anything else (e.g. ValueError
+# from a method call inside a format field) is a real bug.
+_format_failures = []
+for (lang, key), template in _STRINGS.items():
+    try:
+        template.format()
+    except KeyError:
+        pass  # needs kwargs — fine
+    except Exception as exc:  # noqa: BLE001
+        _format_failures.append((lang, key, str(exc)))
+check("i18n all templates valid format", not _format_failures)
+if _format_failures:
+    print("FORMAT FAILURES:", _format_failures[:5])
 
 # ── Rate limiter ──
 rl = RateLimiter(max_events=2, window_seconds=10)
