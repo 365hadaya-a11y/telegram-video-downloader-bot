@@ -43,6 +43,8 @@ logger = logging.getLogger(__name__)
 # yt-dlp extraction is expensive — cache /api/info responses briefly.
 _INFO_CACHE_TTL = 300.0  # seconds
 _MAX_INFO_CACHE = 200  # hard cap to keep memory bounded
+# Max simultaneous yt-dlp extractions (each eats ~50-100 MB on a 256 MB plan).
+_MAX_INFO_INFLIGHT = 2
 
 
 def _validate_url(url: str) -> None:
@@ -114,9 +116,14 @@ class WebDownloadManager:
         self.ytdlp = ytdlp
         self.jobs: dict[str, WebJob] = {}
         self._info_cache: dict[str, tuple[float, dict]] = {}
+        self._info_inflight = 0
         self._lock = asyncio.Lock()
 
     # -- info ----------------------------------------------------------------
+
+    def info_busy(self) -> bool:
+        """True when the extraction concurrency cap is reached."""
+        return self._info_inflight >= _MAX_INFO_INFLIGHT
 
     async def fetch_info(self, url: str) -> dict:
         """Fetch + curate video info (cached briefly)."""
@@ -127,11 +134,15 @@ class WebDownloadManager:
         if cached and now - cached[0] < _INFO_CACHE_TTL:
             return cached[1]
 
-        info = await retry_async(
-            lambda: self.ytdlp.get_video_info(url),
-            attempts=2,
-            base_delay=1.0,
-        )
+        self._info_inflight += 1  # run on the loop — no race
+        try:
+            info = await retry_async(
+                lambda: self.ytdlp.get_video_info(url),
+                attempts=2,
+                base_delay=1.0,
+            )
+        finally:
+            self._info_inflight -= 1
         curated = _curate_info(self.settings, info)
         self._info_cache[key] = (now, curated)
         if len(self._info_cache) > _MAX_INFO_CACHE:

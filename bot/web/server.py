@@ -95,6 +95,11 @@ def create_web_app(app: web.Application, services: Services) -> None:
             return json_response({"ok": False, "error": "Missing url parameter"}, status=400)
         if not url.lower().startswith(("http://", "https://")):
             return json_response({"ok": False, "error": "Only http(s) URLs are supported"}, status=400)
+        if manager.info_busy():
+            return json_response(
+                {"ok": False, "error": "Too many simultaneous lookups — try again in a moment"},
+                status=429,
+            )
         try:
             info = await manager.fetch_info(url)
         except Exception as exc:  # noqa: BLE001
