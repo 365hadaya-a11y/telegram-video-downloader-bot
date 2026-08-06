@@ -1,0 +1,1122 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   LA ROMA - RESTAURANT MENU STYLES
+   تصميم احترافي يشبه تطبيقات المطاعم الحديثة
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   1. CSS VARIABLES - المتغيرات
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+    /* الألوان الأساسية */
+    --primary: #e63946;
+    --primary-dark: #c1121f;
+    --primary-light: #ff6b6b;
+    
+    /* ألوان الخلفية */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-card: #ffffff;
+    --bg-overlay: rgba(0, 0, 0, 0.5);
+    
+    /* ألوان النص */
+    --text-primary: #1a1a2e;
+    --text-secondary: #6c757d;
+    --text-light: #adb5bd;
+    --text-white: #ffffff;
+    
+    /* ألوان الحدود */
+    --border-color: #dee2e6;
+    --border-radius: 16px;
+    --border-radius-sm: 8px;
+    --border-radius-lg: 24px;
+    
+    /* الظلال */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 40px rgba(0, 0, 0, 0.15);
+    --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.08);
+    
+    /* الانتقالات */
+    --transition-fast: 0.2s ease;
+    --transition-normal: 0.3s ease;
+    --transition-slow: 0.5s ease;
+    
+    /* الخطوط */
+    --font-arabic: 'Cairo', sans-serif;
+    --font-display: 'Playfair Display', serif;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   2. RESET & BASE - إعادة التعيين
+   ═══════════════════════════════════════════════════════════════════════════ */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 80px;
+}
+
+body {
+    font-family: var(--font-arabic);
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
+button {
+    font-family: inherit;
+    font-size: inherit;
+    border: none;
+    background: none;
+    cursor: pointer;
+    outline: none;
+}
+
+ul, ol {
+    list-style: none;
+}
+
+input {
+    font-family: inherit;
+    font-size: inherit;
+    border: none;
+    outline: none;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   3. LAYOUT - التخطيط
+   ═══════════════════════════════════════════════════════════════════════════ */
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 16px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   4. HEADER - الشريط العلوي
+   ═══════════════════════════════════════════════════════════════════════════ */
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+    transition: all var(--transition-normal);
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logo-img {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--primary);
+}
+
+.logo-text h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.logo-text span {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.theme-toggle {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    border-radius: 50%;
+    transition: all var(--transition-fast);
+}
+
+.theme-toggle:hover {
+    background: var(--border-color);
+}
+
+.theme-toggle svg {
+    color: var(--text-primary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   5. HERO COVER - صورة الغلاف
+   ═══════════════════════════════════════════════════════════════════════════ */
+.hero-cover {
+    position: relative;
+    height: 200px;
+    margin-top: 72px;
+    overflow: hidden;
+}
+
+.hero-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    background-image: url('https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&q=80');
+    background-size: cover;
+    background-position: center;
+}
+
+.hero-bg::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(230, 57, 70, 0.85), rgba(193, 18, 31, 0.9));
+}
+
+.hero-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    padding: 20px;
+}
+
+.hero-title {
+    font-family: var(--font-display);
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-white);
+    margin-bottom: 8px;
+    animation: fadeInUp 0.8s ease;
+}
+
+.hero-subtitle {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.9);
+    animation: fadeInUp 0.8s ease 0.2s both;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   6. MAIN CATEGORIES - التصنيفات الرئيسية
+   ═══════════════════════════════════════════════════════════════════════════ */
+.main-categories {
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 72px;
+    z-index: 100;
+}
+
+.categories-scroll {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    max-width: 1200px;
+    margin: 0 auto;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.categories-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.main-cat-btn {
+    flex-shrink: 0;
+    padding: 10px 20px;
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-lg);
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.main-cat-btn:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+
+.main-cat-btn.active {
+    background: var(--primary);
+    color: var(--text-white);
+    box-shadow: 0 4px 12px rgba(230, 57, 70, 0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   7. MENU SECTION - قسم القائمة
+   ═══════════════════════════════════════════════════════════════════════════ */
+.menu-section {
+    padding: 24px 0;
+    min-height: 60vh;
+}
+
+/* البحث */
+.search-container {
+    margin-bottom: 24px;
+}
+
+.search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius-lg);
+    padding: 4px 16px;
+}
+
+.search-box svg {
+    color: var(--text-light);
+    flex-shrink: 0;
+}
+
+.search-box input {
+    flex: 1;
+    padding: 14px 12px;
+    background: transparent;
+    font-size: 1rem;
+}
+
+.search-box input::placeholder {
+    color: var(--text-light);
+}
+
+.search-clear {
+    padding: 8px;
+    color: var(--text-light);
+    transition: color var(--transition-fast);
+}
+
+.search-clear:hover {
+    color: var(--primary);
+}
+
+/* عنوان التصنيف */
+.category-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding: 0 4px;
+}
+
+.category-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.category-count {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    padding: 6px 12px;
+    border-radius: var(--border-radius-lg);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   8. MENU GRID - شبكة القائمة
+   ═══════════════════════════════════════════════════════════════════════════ */
+.menu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+/* بطاقة الطبق */
+.menu-card {
+    background: var(--bg-card);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    transition: all var(--transition-normal);
+    animation: fadeInUp 0.5s ease both;
+}
+
+.menu-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+}
+
+.menu-card-image {
+    position: relative;
+    height: 160px;
+    overflow: hidden;
+}
+
+.menu-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--transition-slow);
+}
+
+.menu-card:hover .menu-card-image img {
+    transform: scale(1.05);
+}
+
+.menu-card-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    padding: 4px 10px;
+    background: var(--primary);
+    color: var(--text-white);
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: var(--border-radius-sm);
+}
+
+.menu-card-content {
+    padding: 16px;
+}
+
+.menu-card-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text-primary);
+}
+
+.menu-card-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.menu-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.menu-card-price {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.menu-card-price span {
+    font-size: 0.8rem;
+    font-weight: 400;
+}
+
+.add-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    background: var(--primary);
+    color: var(--text-white);
+    font-weight: 600;
+    font-size: 0.9rem;
+    border-radius: var(--border-radius-sm);
+    transition: all var(--transition-fast);
+}
+
+.add-btn:hover {
+    background: var(--primary-dark);
+    transform: scale(1.02);
+}
+
+.add-btn:active {
+    transform: scale(0.98);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   9. NO RESULTS - عدم وجود نتائج
+   ═══════════════════════════════════════════════════════════════════════════ */
+.no-results {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+}
+
+.no-results svg {
+    color: var(--text-light);
+    margin-bottom: 20px;
+}
+
+.no-results h3 {
+    font-size: 1.25rem;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   10. CONTACT SECTION - قسم التواصل
+   ═══════════════════════════════════════════════════════════════════════════ */
+.contact-section {
+    padding: 60px 0;
+    background: var(--bg-secondary);
+}
+
+.contact-section .section-title {
+    text-align: center;
+    font-size: 1.5rem;
+    margin-bottom: 32px;
+}
+
+.contact-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 40px;
+}
+
+.contact-card {
+    text-align: center;
+    padding: 24px 16px;
+    background: var(--bg-card);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+}
+
+.contact-icon {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    border-radius: 50%;
+    color: var(--text-white);
+}
+
+.contact-card h3 {
+    font-size: 1rem;
+    margin-bottom: 8px;
+}
+
+.contact-card p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+/* QR Code */
+.qr-section {
+    text-align: center;
+    padding: 40px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    border-radius: var(--border-radius);
+    color: var(--text-white);
+}
+
+.qr-section h3 {
+    font-size: 1.25rem;
+    margin-bottom: 8px;
+}
+
+.qr-section p {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin-bottom: 24px;
+}
+
+.qr-container {
+    display: inline-block;
+    padding: 16px;
+    background: var(--text-white);
+    border-radius: var(--border-radius-sm);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   11. FOOTER - التذييل
+   ═══════════════════════════════════════════════════════════════════════════ */
+.footer {
+    background: var(--text-primary);
+    color: var(--text-white);
+    padding: 40px 0 20px;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.footer-brand {
+    text-align: center;
+}
+
+.footer-brand img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    margin: 0 auto 12px;
+    border: 2px solid var(--primary);
+}
+
+.footer-brand h3 {
+    font-size: 1.25rem;
+    margin-bottom: 4px;
+}
+
+.footer-brand p {
+    font-size: 0.875rem;
+    color: var(--text-light);
+}
+
+.footer-bottom {
+    text-align: center;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.footer-bottom p {
+    font-size: 0.85rem;
+    color: var(--text-light);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   12. FLOATING CART - زر السلة العائم
+   ═══════════════════════════════════════════════════════════════════════════ */
+.floating-cart {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--primary);
+    color: var(--text-white);
+    border-radius: 50%;
+    box-shadow: 0 4px 20px rgba(230, 57, 70, 0.4);
+    z-index: 999;
+    transition: all var(--transition-fast);
+}
+
+.floating-cart:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 24px rgba(230, 57, 70, 0.5);
+}
+
+.cart-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--text-primary);
+    color: var(--text-white);
+    font-size: 0.75rem;
+    font-weight: 700;
+    border-radius: 50%;
+    opacity: 0;
+    transform: scale(0);
+    transition: all var(--transition-fast);
+}
+
+.cart-badge.show {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   13. CART SIDEBAR - سلة المشتريات
+   ═══════════════════════════════════════════════════════════════════════════ */
+.cart-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--bg-overlay);
+    z-index: 1998;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-normal);
+}
+
+.cart-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.cart-sidebar {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    width: 100%;
+    max-width: 400px;
+    height: 100vh;
+    background: var(--bg-primary);
+    z-index: 1999;
+    display: flex;
+    flex-direction: column;
+    transition: right var(--transition-normal);
+    box-shadow: var(--shadow-lg);
+}
+
+.cart-sidebar.open {
+    right: 0;
+}
+
+.cart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.cart-header h2 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.1rem;
+}
+
+.cart-close {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    border-radius: 50%;
+    color: var(--text-secondary);
+    transition: all var(--transition-fast);
+}
+
+.cart-close:hover {
+    background: var(--primary);
+    color: var(--text-white);
+}
+
+.cart-items {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.cart-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: var(--border-radius);
+    margin-bottom: 12px;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.cart-item-image {
+    width: 70px;
+    height: 70px;
+    border-radius: var(--border-radius-sm);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.cart-item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.cart-item-details {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.cart-item-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+}
+
+.cart-item-price {
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.cart-item-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: auto;
+}
+
+.quantity-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-card);
+    border-radius: var(--border-radius-sm);
+    padding: 4px;
+}
+
+.quantity-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all var(--transition-fast);
+}
+
+.quantity-btn:hover {
+    background: var(--primary);
+    color: var(--text-white);
+}
+
+.quantity-value {
+    min-width: 24px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.remove-item-btn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(230, 57, 70, 0.1);
+    color: var(--primary);
+    border-radius: 6px;
+    transition: all var(--transition-fast);
+}
+
+.remove-item-btn:hover {
+    background: var(--primary);
+    color: var(--text-white);
+}
+
+.cart-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.cart-empty svg {
+    color: var(--text-light);
+    margin-bottom: 16px;
+}
+
+.cart-empty p {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.cart-empty span {
+    font-size: 0.9rem;
+}
+
+.cart-footer {
+    padding: 16px;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-color);
+}
+
+.cart-summary {
+    margin-bottom: 16px;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+.summary-row.total {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    border-top: 1px solid var(--border-color);
+    padding-top: 12px;
+    margin-top: 4px;
+}
+
+.summary-row.total span:last-child {
+    color: var(--primary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   14. BUTTONS - الأزرار
+   ═══════════════════════════════════════════════════════════════════════════ */
+.btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px 20px;
+    font-weight: 600;
+    border-radius: var(--border-radius-sm);
+    transition: all var(--transition-fast);
+    margin-bottom: 10px;
+}
+
+.btn:last-child {
+    margin-bottom: 0;
+}
+
+.btn-whatsapp {
+    background: #25D366;
+    color: var(--text-white);
+}
+
+.btn-whatsapp:hover {
+    background: #1da851;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 2px solid var(--border-color);
+    color: var(--text-secondary);
+}
+
+.btn-outline:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   15. NOTIFICATION - الإشعارات
+   ═══════════════════════════════════════════════════════════════════════════ */
+.notification {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px;
+    background: #25D366;
+    color: var(--text-white);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-lg);
+    z-index: 3000;
+    opacity: 0;
+    transition: all var(--transition-normal);
+}
+
+.notification.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   16. DARK MODE - الوضع الليلي
+   ═══════════════════════════════════════════════════════════════════════════ */
+body.dark-mode {
+    --bg-primary: #1a1a2e;
+    --bg-secondary: #16213e;
+    --bg-card: #0f3460;
+    --bg-overlay: rgba(0, 0, 0, 0.7);
+    
+    --text-primary: #ffffff;
+    --text-secondary: #adb5bd;
+    --text-light: #6c757d;
+    
+    --border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .header {
+    background: var(--bg-primary);
+}
+
+body.dark-mode .search-box {
+    background: var(--bg-secondary);
+}
+
+body.dark-mode .contact-card,
+body.dark-mode .menu-card {
+    background: var(--bg-card);
+}
+
+body.dark-mode .cart-item {
+    background: var(--bg-secondary);
+}
+
+body.dark-mode .quantity-controls {
+    background: var(--bg-card);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   17. RESPONSIVE - التصميم المتجاوب
+   ═══════════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .hero-cover {
+        height: 160px;
+    }
+    
+    .hero-title {
+        font-size: 1.4rem;
+    }
+    
+    .hero-subtitle {
+        font-size: 0.9rem;
+    }
+    
+    .main-categories {
+        top: 68px;
+    }
+    
+    .hero-cover {
+        margin-top: 68px;
+    }
+    
+    .menu-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 12px;
+    }
+    
+    .menu-card-image {
+        height: 140px;
+    }
+    
+    .floating-cart {
+        bottom: 20px;
+        left: 20px;
+        width: 52px;
+        height: 52px;
+    }
+    
+    .contact-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-cover {
+        height: 140px;
+    }
+    
+    .hero-title {
+        font-size: 1.2rem;
+    }
+    
+    .logo-text h1 {
+        font-size: 1.1rem;
+    }
+    
+    .logo-img {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .menu-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .menu-card-image {
+        height: 180px;
+    }
+    
+    .menu-card-footer {
+        flex-direction: column;
+        gap: 12px;
+    }
+    
+    .add-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
