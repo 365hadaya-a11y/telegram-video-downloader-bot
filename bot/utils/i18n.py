@@ -59,6 +59,7 @@ _STRINGS: dict[tuple[str, str], str] = {
         "📊 شريط تقدم مباشر\n\n"
         "🌐 اللغة الحالية: <b>{lang_name}</b>\n"
         "💬 لتغيير اللغة استخدم /language\n\n"
+        "{web}"
         "🚀 <i>مدعوم بواسطة yt-dlp + FFmpeg</i>"
     ),
     (LANG_EN, "welcome"): (
@@ -79,6 +80,7 @@ _STRINGS: dict[tuple[str, str], str] = {
         "📊 Real-time progress bar\n\n"
         "🌐 Current language: <b>{lang_name}</b>\n"
         "💬 Use /language to change it\n\n"
+        "{web}"
         "🚀 <i>Powered by yt-dlp + FFmpeg</i>"
     ),
 
@@ -487,6 +489,20 @@ _STRINGS: dict[tuple[str, str], str] = {
     (LANG_EN, "btn_stop_broadcast"): "🛑 Stop Broadcast",
     (LANG_AR, "welcome_help_btn"): "❓ المساعدة",
     (LANG_EN, "welcome_help_btn"): "❓ Help",
+    (LANG_AR, "btn_web"): "🌐 موقع التحميل",
+    (LANG_EN, "btn_web"): "🌐 Download Site",
+    (LANG_AR, "btn_web_offer"): "🌐 تحميل من الموقع",
+    (LANG_EN, "btn_web_offer"): "🌐 Download from Website",
+    (LANG_AR, "web_too_large"): (
+        "🌐 <b>ملفك جاهز في موقع التحميل!</b>\n\n"
+        "حجم الملف <b>{size}</b> يتجاوز حد تيليجرام ({limit_mb} م.ب)،\n"
+        "لكن لا مشكلة — حمّله مباشرة من موقعنا عبر الزر أدناه. ✨"
+    ),
+    (LANG_EN, "web_too_large"): (
+        "🌐 <b>Your file is ready on the download site!</b>\n\n"
+        "This file is <b>{size}</b>, which exceeds Telegram's {limit_mb} MB limit,\n"
+        "but no worries — grab it straight from our website with the button below. ✨"
+    ),
 
     # ── Forced subscription (multi-channel) ───────────────────────
     (LANG_AR, "join_message_title"): "🔒 <b>الاشتراك بالقنوات مطلوب</b>\n\nلاستخدام البوت، يرجى الانضمام إلى <b>كل</b> القنوات التالية أولاً:",
@@ -579,7 +595,16 @@ _STRINGS: dict[tuple[str, str], str] = {
     (LANG_EN, "cmd_setchannel"): "🔒 Add forced channel",
     (LANG_AR, "cmd_delchannel"): "🔒 حذف قناة إجبارية",
     (LANG_EN, "cmd_delchannel"): "🔒 Remove forced channel",
+
+    # ── Web download site (موقع التحميل) ────────────────────────────
+    (LANG_AR, "web_mention"): "🌐 <b>موقع التحميل:</b> <a href=\"{url}\">اضغط هنا</a> — حمّل من المتصفح",
+    (LANG_EN, "web_mention"): "🌐 <b>Download site:</b> <a href=\"{url}\">Click here</a> — download in your browser",
 }
+
+
+def web_mention(lang: str, url: str) -> str:
+    """Two-line blurb linking the web download site (empty if no URL)."""
+    return f"{t(lang, 'web_mention', url=url)}\n\n" if url else ""
 
 
 def t(lang: str, key: str, **kwargs: object) -> str:

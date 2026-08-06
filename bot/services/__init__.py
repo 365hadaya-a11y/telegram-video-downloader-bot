@@ -16,6 +16,7 @@ from .queue import DownloadQueue
 from .stickers import StickerService
 from .subscription import ForcedSubscription
 from .ytdlp import YtDlpService
+from ..web.manager import WebDownloadManager
 
 
 @dataclass
@@ -29,6 +30,7 @@ class Services:
     cleanup: CleanupService
     subscription: ForcedSubscription
     broadcast: BroadcastService
+    web: WebDownloadManager | None = None
 
 
 __all__ = ["Services"]

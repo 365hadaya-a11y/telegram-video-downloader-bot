@@ -59,7 +59,11 @@ def language_keyboard(current_lang: str = LANG_AR) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def info_keyboard(has_qualities: bool = True, lang: str = LANG_AR) -> InlineKeyboardMarkup:
+def info_keyboard(
+    has_qualities: bool = True,
+    lang: str = LANG_AR,
+    web_url: str | None = None,
+) -> InlineKeyboardMarkup:
     """Main action keyboard shown on the info card."""
     rows = [[_btn(t(lang, "btn_best"), "best")]]
     rows.append(
@@ -67,6 +71,8 @@ def info_keyboard(has_qualities: bool = True, lang: str = LANG_AR) -> InlineKeyb
         if has_qualities
         else [_btn(t(lang, "btn_audio"), "audio")]
     )
+    if web_url:
+        rows.append([InlineKeyboardButton(text=t(lang, "btn_web"), url=web_url)])
     rows.append([_btn(t(lang, "btn_cancel"), "cancel")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -92,12 +98,23 @@ def quality_keyboard(
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
-def oversize_keyboard(lang: str = LANG_AR) -> InlineKeyboardMarkup:
+def oversize_keyboard(lang: str = LANG_AR, web_url: str | None = None) -> InlineKeyboardMarkup:
     """Offered when the selected size exceeds the configured limit."""
+    rows: list[list[InlineKeyboardButton]] = [
+        [_btn(t(lang, "btn_choose"), "choose")],
+        [_btn(t(lang, "btn_audio"), "audio")],
+    ]
+    if web_url:
+        rows.insert(0, [InlineKeyboardButton(text=t(lang, "btn_web_offer"), url=web_url)])
+    rows.append([_btn(t(lang, "btn_cancel"), "cancel")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def web_offer_keyboard(web_url: str, lang: str = LANG_AR) -> InlineKeyboardMarkup:
+    """Shown when the finished file exceeds Telegram's upload limit."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [_btn(t(lang, "btn_choose"), "choose")],
-            [_btn(t(lang, "btn_audio"), "audio")],
+            [InlineKeyboardButton(text=t(lang, "btn_web_offer"), url=web_url)],
             [_btn(t(lang, "btn_cancel"), "cancel")],
         ]
     )

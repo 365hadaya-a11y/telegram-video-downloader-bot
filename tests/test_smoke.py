@@ -19,6 +19,7 @@ os.environ["ADMIN_IDS"] = "[111, 222]"
 # ── Imports (would fail on any broken module / bad aiogram usage) ──
 import bot.main  # noqa: F401
 import bot.services.downloader  # noqa: F401
+import bot.web.server  # noqa: F401
 from bot.config import Settings, load_settings
 from bot.database import Database
 from bot.keyboards.inline import (
@@ -29,11 +30,13 @@ from bot.keyboards.inline import (
     cancel_keyboard,
     info_keyboard,
     language_keyboard,
+    oversize_keyboard,
     panel_channels_keyboard,
     panel_language_keyboard,
     panel_stats_keyboard,
     quality_keyboard,
     remove_keyboard,
+    web_offer_keyboard,
     welcome_keyboard,
 )
 from bot.services.broadcast import BroadcastCB, BroadcastService, broadcast_cancel_keyboard
@@ -62,6 +65,7 @@ from bot.utils.i18n import (
     lang_name,
     normalize_lang,
     t,
+    web_mention,
 )
 from bot.utils.retry import retry_async
 
@@ -113,8 +117,10 @@ check("broadcast cb pack", BroadcastCB(action="cancel").pack().startswith("bc:")
 
 # ── i18n (bilingual) ──
 check("i18n default ar", DEFAULT_LANG == LANG_AR)
-check("i18n ar welcome", "أهلاً" in t(LANG_AR, "welcome", name="سارة", lang_name="العربية"))
-check("i18n en welcome", "Welcome" in t(LANG_EN, "welcome", name="Sara", lang_name="English"))
+check("i18n ar welcome", "أهلاً" in t(LANG_AR, "welcome", name="سارة", lang_name="العربية", web=""))
+check("i18n en welcome", "Welcome" in t(LANG_EN, "welcome", name="Sara", lang_name="English", web=""))
+check("web_mention empty", web_mention("ar", "") == "")
+check("web_mention set", "اضغط هنا" in web_mention("ar", "https://dl.example.com") and "https://dl.example.com" in web_mention("ar", "https://dl.example.com"))
 check("i18n normalize", normalize_lang("EN") == LANG_EN and normalize_lang("xx") == LANG_AR and normalize_lang(None) == LANG_AR)
 check("i18n lang_name", lang_name("ar") == "العربية" and lang_name("en") == "English")
 check("i18n buttons ar", t(LANG_AR, "btn_cancel") == "❌ إلغاء")
@@ -146,6 +152,10 @@ check("rate limiter trips", rl.is_limited(1) is True)
 # ── Keyboards ──
 kb = info_keyboard(has_qualities=True)
 check("info keyboard buttons", len(kb.inline_keyboard) == 3)
+kbw = info_keyboard(has_qualities=True, web_url="https://dl.example.com")
+check("info keyboard web row", len(kbw.inline_keyboard) == 4)
+check("oversize keyboard web row", len(oversize_keyboard(web_url="https://dl.example.com").inline_keyboard) == 4)
+check("web offer keyboard", len(web_offer_keyboard("https://dl.example.com/?url=x").inline_keyboard) == 2)
 qkb = quality_keyboard([2160, 1080, 720], page=0, num_pages=1, size_map={1080: "1.2 GB"})
 check("quality keyboard", len(qkb.inline_keyboard) >= 3)
 check("remove_keyboard empty", remove_keyboard().inline_keyboard == [])
@@ -182,6 +192,11 @@ s_multi = _Settings(_env_file=None, BOT_TOKEN="t", force_channels="@X, @Y")
 check("force_channels parsed", s_multi.all_force_channels == ["@X", "@Y"])
 s_legacy = _Settings(_env_file=None, BOT_TOKEN="t", force_channel="@Old")
 check("legacy force_channel", s_legacy.all_force_channels == ["@Old"])
+s_web = _Settings(_env_file=None, BOT_TOKEN="t", webhook_url="https://x.example.com/webhook")
+check("web_base derived", s_web.web_base == "https://x.example.com")
+s_web2 = _Settings(_env_file=None, BOT_TOKEN="t", web_base_url="https://dl.example.com/")
+check("web_base explicit", s_web2.web_base == "https://dl.example.com")
+check("web max size bytes", s_web2.web_max_file_size_bytes == 2000 * 1024 * 1024)
 
 
 # ── Everything async runs in ONE event loop (Windows-friendly) ──
@@ -280,6 +295,71 @@ async def run_all() -> None:
         await db.remove_user(2)
         check("remove_user", await db.users_count() == 0)
         await db.close()
+
+    # ── Web download manager (shares the yt-dlp engine) ──
+    from bot.web.manager import WebDownloadManager, _validate_url
+    from bot.services.ytdlp import ProgressPayload
+    from aiohttp import web as aiohttp_web
+
+    _validate_url("https://youtu.be/x")
+    _validate_url("http://example.com/v")
+    try:
+        _validate_url("file:///etc/passwd")
+        check("web url rejects file scheme", False)
+    except ValueError:
+        check("web url rejects file scheme", True)
+
+    class _FakeYtdlp:
+        def __init__(self, out_path: Path) -> None:
+            self.out_path = out_path
+
+        async def get_video_info(self, url: str) -> dict:
+            return dict(
+                SAMPLE_INFO,
+                id="vid123",
+                title="Test Video",
+                webpage_url=url,
+                duration=65,
+                thumbnails=[{"url": "https://x/t.jpg"}],
+            )
+
+        async def download(self, url, video_id, mode, height, channel, cancel_event, workdir):
+            workdir.mkdir(parents=True, exist_ok=True)
+            channel.push(ProgressPayload(status="downloading", downloaded_bytes=50, total_bytes=100, speed=1024.0, eta=3.0))
+            channel.push(ProgressPayload(status="finished"))
+            return self.out_path
+
+    with tempfile.TemporaryDirectory() as tmp:
+        s2 = _Settings(_env_file=None, BOT_TOKEN="t", temp_dir=Path(tmp))
+        out = Path(tmp) / "done.mp4"
+        out.write_bytes(b"x" * 100)
+        wm = WebDownloadManager(s2, _FakeYtdlp(out))
+
+        info = await wm.fetch_info("https://youtu.be/abc")
+        check("web fetch_info curated", info["title"] == "Test Video" and info["has_video"] is True and len(info["qualities"]) == 2)
+        cached = await wm.fetch_info("https://youtu.be/abc")
+        check("web info cache hit", cached is info)
+
+        job = wm.create_job("https://youtu.be/abc", "video", None)
+        check("web job created", job is not None and job.mode == "video")
+        await wm.run_job(job)
+        st = wm.status(job.id)
+        check("web job done", st is not None and st["state"] == "done" and st["filename"] == "done.mp4" and st["progress"] == 100.0)
+        fr = await wm.file_response(job.id)
+        check("web file response", fr is not None and isinstance(fr, aiohttp_web.FileResponse))
+
+        aj = wm.create_job("https://youtu.be/abc", "audio", 1080)
+        check("web audio job forces height None", aj is not None and aj.height is None)
+        await wm.run_job(aj)
+        check("web audio job done", wm.status(aj.id)["state"] == "done")
+
+        # concurrency cap
+        extra = sum(1 for _ in range(s2.web_max_concurrent_jobs) if wm.create_job("https://x.com/a", "video", None))
+        check("web capacity fills", extra == s2.web_max_concurrent_jobs)
+        check("web capacity blocks", wm.create_job("https://x.com/b", "video", None) is None)
+
+        check("web cancel missing job", wm.cancel("nope") is False)
+        check("web status missing job", wm.status("nope") is None)
 
     # Broadcast service
     with tempfile.TemporaryDirectory() as tmp:

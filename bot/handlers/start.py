@@ -18,16 +18,16 @@ from ..keyboards.inline import (
     welcome_keyboard,
 )
 from ..services import Services
-from ..utils.i18n import lang_name, normalize_lang, t
+from ..utils.i18n import lang_name, normalize_lang, t, web_mention
 
 logger = logging.getLogger(__name__)
 
 router = Router(name="start")
 
 
-def _welcome_text(lang: str, first_name: str | None) -> str:
+def _welcome_text(lang: str, first_name: str | None, web_base: str | None) -> str:
     name = html.escape(first_name or ("صديقي" if lang == "ar" else "friend"))
-    return t(lang, "welcome", name=name, lang_name=lang_name(lang))
+    return t(lang, "welcome", name=name, lang_name=lang_name(lang), web=web_mention(lang, web_base or ""))
 
 
 def _help_text(lang: str) -> str:
@@ -56,7 +56,10 @@ async def on_start(message: Message, services: Services) -> None:
         return
 
     await services.stickers.send(message, message.bot, "welcome")
-    await message.answer(_welcome_text(lang, user.first_name), reply_markup=welcome_keyboard(lang))
+    await message.answer(
+        _welcome_text(lang, user.first_name, services.settings.web_base),
+        reply_markup=welcome_keyboard(lang),
+    )
 
 
 @router.message(Command("help"))

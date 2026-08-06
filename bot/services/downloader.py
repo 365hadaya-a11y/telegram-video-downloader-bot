@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from uuid import uuid4
 
+from urllib.parse import quote
+
 import aiohttp
 import yt_dlp
 from aiogram import Bot
@@ -34,6 +36,7 @@ from ..keyboards.inline import (
     oversize_keyboard,
     quality_keyboard,
     remove_keyboard,
+    web_offer_keyboard,
 )
 from ..utils.formatters import (
     clean_filename,
@@ -328,6 +331,13 @@ class DownloadService:
 
     # -- flow steps ----------------------------------------------------------
 
+    def _web_link(self, session: DownloadSession) -> str | None:
+        """Public URL that opens the website with this video preloaded."""
+        base = self.settings.web_base
+        if not base:
+            return None
+        return f"{base}/?url={quote(session.url, safe='')}"
+
     async def _run_flow(self, session: DownloadSession, message: Message, bot: Bot, url: str) -> None:
         try:
             info = await retry_async(
@@ -349,6 +359,8 @@ class DownloadService:
         qualities = available_qualities(info, limit=self.settings.max_quality_choices)
         info_caption = _info_card(info, self.settings, session.lang)
 
+        web_url = self._web_link(session)
+
         while True:
             # caption is passed explicitly so it is restored after the
             # quality menu / oversize warning overwrites it
@@ -356,7 +368,7 @@ class DownloadService:
                 session,
                 bot,
                 caption=info_caption,
-                keyboard=info_keyboard(has_qualities=bool(qualities), lang=session.lang),
+                keyboard=info_keyboard(has_qualities=bool(qualities), lang=session.lang, web_url=web_url),
             )
             action, _, value = choice.partition(":")
             logger.info("User %s chose %r (phase=%s)", session.user_id, choice, session.phase)
@@ -387,7 +399,7 @@ class DownloadService:
                     size=format_size(estimated),
                     limit_mb=self.settings.max_file_size_mb,
                 )
-                choice2 = await self._ask(session, bot, caption=warn, keyboard=oversize_keyboard(session.lang))
+                choice2 = await self._ask(session, bot, caption=warn, keyboard=oversize_keyboard(session.lang, web_url=web_url))
                 action2, _, _ = choice2.partition(":")
                 if action2 == "cancel":
                     await self._finish_cancelled(session, bot)
@@ -522,6 +534,27 @@ class DownloadService:
         size = path.stat().st_size
 
         if size > settings.max_file_size_bytes:
+            # Bigger than Telegram's bot-API limit → hand it to the web site,
+            # which has its own (much larger) size limit.
+            web_url = self._web_link(session)
+            if web_url:
+                await self._edit_card(
+                    session,
+                    bot,
+                    t(
+                        session.lang,
+                        "web_too_large",
+                        size=format_size(size),
+                        limit_mb=settings.max_file_size_mb,
+                    ),
+                    web_offer_keyboard(web_url, session.lang),
+                )
+                await self.stickers.send(session.message, bot, "success")  # type: ignore[arg-type]
+                await self.db.log_download(
+                    session.user_id, session.url, mode, height, size, info.get("duration"), False, "File too large (web link offered)"
+                )
+                return "error"
+
             await self._edit_card(
                 session,
                 bot,
@@ -692,7 +725,9 @@ class DownloadService:
     async def _show_info_card(self, session: DownloadSession, message: Message, bot: Bot, info: dict) -> None:
         caption = _info_card(info, self.settings, session.lang)
         qualities = available_qualities(info, limit=self.settings.max_quality_choices)
-        keyboard = info_keyboard(has_qualities=bool(qualities), lang=session.lang)
+
+        web_url = self._web_link(session)
+        keyboard = info_keyboard(has_qualities=bool(qualities), lang=session.lang, web_url=web_url)
 
         session.thumb_path = await self._fetch_thumbnail(info, session.workdir)
 

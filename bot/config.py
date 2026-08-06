@@ -82,6 +82,21 @@ class Settings(BaseSettings):
     webhook_host: str = "0.0.0.0"
     webhook_port: int = 8080
 
+    # ── Web download site (premium web UI, same server) ───────────
+    # A full download website served from the SAME aiohttp server as the
+    # webhook (port 8080). It reuses the bot's yt-dlp engine + temp storage.
+    web_enabled: bool = True
+    # Public base URL; if empty it is derived from WEBHOOK_URL (strip path).
+    web_base_url: str | None = None
+    # The website can serve bigger files than Telegram's 50 MB bot-API limit.
+    web_max_file_size_mb: int = 2000
+    # Finished/errored job files are deleted after this long.
+    web_job_ttl_minutes: int = 120
+    # Max simultaneous downloads through the website (protects the instance).
+    web_max_concurrent_jobs: int = 3
+    # Optional bot username (without @) — used for "open in Telegram" links.
+    bot_username: str | None = None
+
     # ── Stickers (optional) ───────────────────────────────────────
     sticker_set_name: str | None = None
     sticker_welcome_file_id: str | None = None
@@ -123,6 +138,22 @@ class Settings(BaseSettings):
     @property
     def max_file_size_bytes(self) -> int:
         return self.max_file_size_mb * 1024 * 1024
+
+    @property
+    def web_base(self) -> str | None:
+        """Public base URL of the download website (no trailing slash)."""
+        if self.web_base_url:
+            return self.web_base_url.rstrip("/")
+        if self.webhook_url:
+            base = self.webhook_url.rstrip("/")
+            if self.webhook_path and base.endswith(self.webhook_path):
+                base = base[: -len(self.webhook_path)]
+            return base.rstrip("/") or None
+        return None
+
+    @property
+    def web_max_file_size_bytes(self) -> int:
+        return self.web_max_file_size_mb * 1024 * 1024
 
     @property
     def all_force_channels(self) -> list[str]:

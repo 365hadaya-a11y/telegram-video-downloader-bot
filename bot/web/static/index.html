@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#070b1a">
+<title>⬇️ VideoDrop — Premium Video Downloader</title>
+<style>
+  :root{
+    --bg:#070b1a; --card:rgba(255,255,255,.06); --border:rgba(255,255,255,.12);
+    --txt:#eef1fb; --muted:#9aa3c0; --gold:#ffd76a; --gold2:#ff9f43;
+    --violet:#8b6cff; --cyan:#38e0ff; --ok:#34e3a0; --err:#ff6b81;
+    --grad:linear-gradient(135deg,var(--gold),var(--gold2));
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:"Segoe UI",Tahoma,"Noto Sans Arabic","Helvetica Neue",system-ui,sans-serif;
+    background:
+      radial-gradient(1100px 600px at 85% -10%, rgba(124,92,255,.20), transparent 60%),
+      radial-gradient(900px 500px at 0% 20%, rgba(56,224,255,.10), transparent 55%),
+      radial-gradient(800px 700px at 50% 120%, rgba(255,159,67,.10), transparent 60%),
+      var(--bg);
+    color:var(--txt); min-height:100vh; overflow-x:hidden;
+  }
+  ::selection{background:rgba(255,215,106,.35)}
+
+  /* ── animated background orbs ── */
+  .orbs{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+  .orb{position:absolute;border-radius:50%;filter:blur(90px);opacity:.5;animation:drift 14s ease-in-out infinite alternate}
+  .o1{width:420px;height:420px;background:rgba(124,92,255,.45);top:-120px;right:-80px}
+  .o2{width:360px;height:360px;background:rgba(255,215,106,.28);bottom:-100px;left:-90px;animation-delay:-5s}
+  .o3{width:300px;height:300px;background:rgba(56,224,255,.22);top:38%;left:38%;animation-delay:-9s}
+  @keyframes drift{
+    0%{transform:translate(0,0) scale(1)}
+    100%{transform:translate(40px,-50px) scale(1.15)}
+  }
+
+  header{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px clamp(16px,5vw,64px);
+    position:sticky;top:0;z-index:50;
+    background:rgba(7,11,26,.55);backdrop-filter:blur(16px);
+    border-bottom:1px solid rgba(255,255,255,.06);
+  }
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.25rem;letter-spacing:.3px}
+  .brand .logo{font-size:1.5rem;filter:drop-shadow(0 0 12px rgba(255,215,106,.6));animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+  .brand-name span{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .head-actions{display:flex;gap:10px}
+  .ghost-btn{
+    background:rgba(255,255,255,.05);color:var(--txt);border:1px solid var(--border);
+    padding:9px 16px;border-radius:12px;cursor:pointer;font-size:.95rem;font-weight:600;
+    transition:all .22s ease;text-decoration:none;
+  }
+  .ghost-btn:hover{border-color:rgba(255,215,106,.6);background:rgba(255,215,106,.08);transform:translateY(-1px)}
+  .ghost-btn:active{transform:scale(.96)}
+
+  main{max-width:920px;margin:0 auto;padding:clamp(24px,5vw,56px) clamp(16px,5vw,40px) 80px}
+  .hero{text-align:center;margin-bottom:34px}
+  h1{
+    font-size:clamp(1.7rem,4.5vw,2.7rem);font-weight:900;line-height:1.35;
+    background:linear-gradient(180deg,#fff, #c9d2ff);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    text-shadow:0 0 60px rgba(139,108,255,.35);
+    animation:fadeUp .7s ease both;
+  }
+  h1 em{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero p{color:var(--muted);margin-top:12px;font-size:1.05rem;animation:fadeUp .7s .08s ease both}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+  .search{
+    display:flex;gap:10px;margin:28px auto 0;max-width:680px;
+    padding:8px;border-radius:18px;
+    background:var(--card);border:1px solid var(--border);backdrop-filter:blur(18px);
+    box-shadow:0 18px 50px rgba(0,0,0,.4);
+    animation:fadeUp .7s .16s ease both;
+    transition:border-color .25s ease, box-shadow .25s ease;
+  }
+  .search:focus-within{border-color:rgba(255,215,106,.65);box-shadow:0 0 0 4px rgba(255,215,106,.12),0 18px 50px rgba(0,0,0,.4)}
+  .search input{
+    flex:1;min-width:0;background:transparent;border:none;outline:none;color:var(--txt);
+    font-size:1.05rem;padding:13px 14px;direction:ltr;text-align:left;
+  }
+  .search input::placeholder{color:#6b7496}
+  .gold-btn{
+    background:var(--grad);color:#241503;border:none;border-radius:12px;
+    padding:13px 26px;font-size:1.02rem;font-weight:800;cursor:pointer;white-space:nowrap;
+    box-shadow:0 8px 26px rgba(255,159,67,.35);
+    transition:all .22s ease;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .gold-btn:hover{transform:translateY(-2px);box-shadow:0 12px 34px rgba(255,159,67,.5);filter:brightness(1.06)}
+  .gold-btn:active{transform:scale(.96)}
+  .gold-btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+  .gold-btn.big{width:100%;padding:16px;font-size:1.1rem;border-radius:16px}
+
+  .chips{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:22px;animation:fadeUp .7s .24s ease both}
+  .chip{
+    font-size:.85rem;color:var(--muted);padding:7px 14px;border-radius:999px;
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  }
+
+  /* ── cards ── */
+  .card{
+    background:linear-gradient(165deg,rgba(255,255,255,.08),rgba(255,255,255,.02));
+    border:1px solid var(--border);border-radius:24px;padding:22px;
+    backdrop-filter:blur(20px);box-shadow:0 22px 60px rgba(0,0,0,.45);
+    animation:fadeUp .45s ease both;margin-bottom:22px;
+  }
+  .hidden{display:none!important}
+
+  .spinner{width:52px;height:52px;border-radius:50%;border:4px solid rgba(255,255,255,.12);border-top-color:var(--gold);animation:spin .9s linear infinite;margin:8px auto}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .center{text-align:center}
+  .loading-title{font-size:1.15rem;font-weight:700;margin-top:14px}
+  .loading-sub{color:var(--muted);font-size:.92rem;margin-top:6px}
+
+  /* info card */
+  .info-grid{display:grid;grid-template-columns:200px 1fr;gap:18px}
+  .info-grid .thumb{width:200px;height:112px;object-fit:cover;border-radius:14px;border:1px solid var(--border);background:rgba(255,255,255,.04)}
+  .info-title{font-size:1.15rem;font-weight:800;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .info-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .meta-chip{font-size:.82rem;color:#dfe4ff;padding:6px 12px;border-radius:10px;background:rgba(139,108,255,.16);border:1px solid rgba(139,108,255,.3)}
+  .quality-title{font-weight:800;margin:18px 0 12px;font-size:1.02rem;color:var(--gold)}
+  .quality-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+  .q-btn{
+    background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--txt);
+    border-radius:14px;padding:13px 10px;cursor:pointer;text-align:center;
+    transition:all .2s ease;font-family:inherit;
+  }
+  .q-btn .q-h{font-weight:800;font-size:1.05rem}
+  .q-btn .q-s{font-size:.78rem;color:var(--muted);margin-top:3px}
+  .q-btn:hover{transform:translateY(-3px);border-color:rgba(255,215,106,.6);background:rgba(255,215,106,.08);box-shadow:0 10px 26px rgba(255,159,67,.18)}
+  .q-btn.best{background:var(--grad);border:none}
+  .q-btn.best .q-h{color:#241503}.q-btn.best .q-s{color:rgba(36,21,3,.75)}
+  .q-btn.audio{border-color:rgba(56,224,255,.45);background:rgba(56,224,255,.07)}
+  .q-btn.audio:hover{border-color:var(--cyan);background:rgba(56,224,255,.14)}
+  .q-btn:active{transform:scale(.95)}
+
+  /* progress */
+  .prog-head{display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:800}
+  .prog-pct{font-size:1.6rem;font-weight:900;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .prog-track{height:16px;border-radius:999px;background:rgba(255,255,255,.08);margin:14px 0 10px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+  .prog-fill{height:100%;width:0%;border-radius:999px;background:var(--grad);position:relative;transition:width .8s cubic-bezier(.25,.8,.3,1);box-shadow:0 0 18px rgba(255,159,67,.5)}
+  .prog-fill::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 25%,rgba(255,255,255,.55) 50%,transparent 75%);animation:shine 1.6s linear infinite}
+  @keyframes shine{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+  .prog-meta{display:flex;justify-content:space-between;color:var(--muted);font-size:.9rem;flex-wrap:wrap;gap:6px}
+  .prog-state{font-weight:700;color:var(--cyan)}
+  .prog-actions{display:flex;gap:10px;margin-top:16px}
+  .danger-btn{
+    flex:1;background:rgba(255,107,129,.1);color:#ffb3c0;border:1px solid rgba(255,107,129,.4);
+    border-radius:14px;padding:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:.95rem;transition:all .2s ease;
+  }
+  .danger-btn:hover{background:rgba(255,107,129,.2);transform:translateY(-1px)}
+  .danger-btn:active{transform:scale(.96)}
+
+  /* done */
+  .done-wrap{text-align:center;padding:12px 4px}
+  .check{width:92px;height:92px;margin:0 auto;position:relative}
+  .check svg{width:100%;height:100%}
+  .check .ring{fill:none;stroke:rgba(52,227,160,.3);stroke-width:4}
+  .check .ring2{fill:none;stroke:var(--ok);stroke-width:4;stroke-dasharray:290;stroke-dashoffset:290;stroke-linecap:round;transform-origin:center;animation:draw 1s .2s ease forwards}
+  .check .tick{fill:none;stroke:var(--ok);stroke-width:7;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:80;stroke-dashoffset:80;animation:draw .5s .9s ease forwards}
+  @keyframes draw{to{stroke-dashoffset:0}}
+  .pulse-ring{position:absolute;inset:-14px;border-radius:50%;border:2px solid rgba(52,227,160,.5);animation:ring 1.6s ease-out infinite}
+  @keyframes ring{from{transform:scale(.8);opacity:1}to{transform:scale(1.4);opacity:0}}
+  .done-title{font-size:1.35rem;font-weight:900;margin-top:18px}
+  .done-file{color:var(--muted);font-size:.95rem;margin-top:8px;word-break:break-all}
+  .done-actions{display:grid;gap:10px;margin-top:20px;max-width:420px;margin-inline:auto}
+  .soft-btn{
+    background:rgba(255,255,255,.06);color:var(--txt);border:1px solid var(--border);
+    border-radius:14px;padding:13px;font-weight:700;cursor:pointer;font-family:inherit;font-size:.98rem;text-decoration:none;text-align:center;
+    transition:all .2s ease;display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .soft-btn:hover{border-color:rgba(56,224,255,.55);background:rgba(56,224,255,.08);transform:translateY(-1px)}
+  .soft-btn:active{transform:scale(.97)}
+
+  /* error */
+  .err-icon{font-size:3.2rem;text-align:center;animation:shake .5s ease}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+  .err-title{text-align:center;font-size:1.25rem;font-weight:800;margin-top:10px;color:var(--err)}
+  .err-msg{color:var(--muted);text-align:center;margin-top:10px;font-size:.95rem;direction:ltr;word-break:break-all}
+  .err-actions{display:grid;gap:10px;margin-top:20px;max-width:420px;margin-inline:auto}
+
+  /* history */
+  .sec-title{font-size:1.1rem;font-weight:800;margin:30px 0 14px;display:flex;align-items:center;gap:8px}
+  .hist-item{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;
+    padding:12px 14px;margin-bottom:8px;transition:all .2s ease;
+  }
+  .hist-item:hover{border-color:rgba(255,215,106,.4);transform:translateX(4px)}
+  .hist-item .t{font-size:.92rem;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hist-item a{color:var(--gold);font-weight:800;text-decoration:none;font-size:.9rem;white-space:nowrap}
+  .hist-item a:hover{text-decoration:underline}
+
+  footer{text-align:center;color:#5d6790;font-size:.85rem;padding:26px 16px 40px;border-top:1px solid rgba(255,255,255,.05);margin-top:20px}
+  footer a{color:var(--gold);text-decoration:none;font-weight:700}
+  footer a:hover{text-decoration:underline}
+
+  @media (max-width:640px){
+    .info-grid{grid-template-columns:1fr}
+    .info-grid .thumb{width:100%;height:auto;aspect-ratio:16/9}
+    .search{flex-direction:column}
+    .search input{text-align:center;direction:ltr}
+    .prog-meta{flex-direction:column;gap:4px}
+  }
+</style>
+</head>
+<body>
+<div class="orbs"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div></div>
+
+<header>
+  <div class="brand"><span class="logo">⬇️</span><span class="brand-name">Video<span>Drop</span></span></div>
+  <div class="head-actions">
+    <a id="botLink" class="ghost-btn hidden" href="#" target="_blank" rel="noopener">📲</a>
+    <button id="langBtn" class="ghost-btn">English</button>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <h1 id="heroTitle"></h1>
+    <p id="heroSub"></p>
+    <div class="search">
+      <input id="url" type="url" autocomplete="off" spellcheck="false" enterkeyhint="go">
+      <button id="go" class="gold-btn">⬇️</button>
+    </div>
+    <div class="chips">
+      <span class="chip">🎵 MP3</span><span class="chip">📺 4K / 1080p</span>
+      <span class="chip">⚡ <span data-i18n="chipFast"></span></span>
+      <span class="chip">🔒 <span data-i18n="chipFree"></span></span>
+    </div>
+  </section>
+
+  <section id="views"></section>
+
+  <section id="historySec" class="hidden">
+    <div class="sec-title">🕘 <span data-i18n="historyTitle"></span></div>
+    <div id="historyList"></div>
+  </section>
+</main>
+
+<footer>
+  <p data-i18n="footer"></p>
+  <p style="margin-top:6px"><span data-i18n="footerBot"></span> <a id="footerBotLink" href="#" target="_blank" rel="noopener"></a></p>
+</footer>
+
+<script>
+/* ── bilingual strings ─────────────────────────────────────────────── */
+var I18N = {
+  ar: {
+    title: "⬇️ VideoDrop — تحميل الفيديوهات",
+    heroTitle: "حمّل أي فيديو بجودة عالية، <em>مجاناً</em>",
+    heroSub: "الصق رابط الفيديو من يوتيوب، تيك توك، إنستغرام، فيسبوك وأكثر من 1000 موقع",
+    goBtn: "⬇️ تحميل",
+    inputPh: "https://youtube.com/watch?v=…",
+    chipFast: "سرعة عالية", chipFree: "مجاني",
+    loading: "جاري فحص الرابط…", loadingSub: "نستخرج معلومات الفيديو الآن ⚙️",
+    noUrl: "أدخل رابط فيديو صحيحاً أولاً 🔗",
+    infoTitle: "🎬 تم العثور على الفيديو!", qualityTitle: "📺 اختر جودة التحميل",
+    best: "👑 أفضل جودة", audio: "🎵 صوت فقط (MP3)",
+    duration: "⏱️ المدة", channel: "👤 القناة", size: "📦 الحجم",
+    bestSize: "أفضل جودة", busy: "⏳ الموقع مشغول حالياً…", busySub: "هناك حد أقصى للتحميلات المتزامنة، حاول بعد لحظات",
+    tryAgain: "🔄 حاول مجدداً", newDownload: "🆕 تحميل جديد",
+    downloading: "⬇️ جاري التحميل…", processing: "🎬 جاري المعالجة…",
+    speed: "⚡ السرعة", eta: "⏱️ المتبقي", of: "من", cancel: "❌ إلغاء التحميل",
+    cancelled: "تم إلغاء التحميل 🚫",
+    done: "🎉 اكتمل التحميل!", doneSub: "ملفك جاهز الآن — حمّله من الزر أدناه",
+    download: "⬇️ تحميل الملف", openBot: "📲 فتح في تيليجرام",
+    error: "حدث خطأ 😔", tryAgainShort: "حاول مجدداً",
+    historyTitle: "آخر التحميلات", downloadAgain: "تحميل",
+    footer: "مدعوم بواسطة yt-dlp و FFmpeg ⚡",
+    footerBot: "أو جرّب التحميل مباشرة من البوت:",
+    botLabel: "🤖 تيليجرام بوت",
+    unknown: "غير معروف",
+  },
+  en: {
+    title: "⬇️ VideoDrop — Premium Video Downloader",
+    heroTitle: "Download any video in high quality, <em>free</em>",
+    heroSub: "Paste a video link from YouTube, TikTok, Instagram, Facebook and 1000+ sites",
+    goBtn: "⬇️ Download",
+    inputPh: "https://youtube.com/watch?v=…",
+    chipFast: "Lightning fast", chipFree: "100% free",
+    loading: "Checking the link…", loadingSub: "Extracting video information ⚙️",
+    noUrl: "Please enter a valid video URL 🔗",
+    infoTitle: "🎬 Video found!", qualityTitle: "📺 Choose download quality",
+    best: "👑 Best Quality", audio: "🎵 Audio Only (MP3)",
+    duration: "⏱️ Duration", channel: "👤 Channel", size: "📦 Size",
+    bestSize: "Best Quality", busy: "⏳ The site is busy right now…", busySub: "There is a limit on concurrent downloads, please try again shortly",
+    tryAgain: "🔄 Try again", newDownload: "🆕 New download",
+    downloading: "⬇️ Downloading…", processing: "🎬 Processing…",
+    speed: "⚡ Speed", eta: "⏱️ ETA", of: "of", cancel: "❌ Cancel download",
+    cancelled: "Download cancelled 🚫",
+    done: "🎉 Download complete!", doneSub: "Your file is ready — grab it below",
+    download: "⬇️ Download file", openBot: "📲 Open in Telegram",
+    error: "Something went wrong 😔", tryAgainShort: "Try again",
+    historyTitle: "Recent downloads", downloadAgain: "Download",
+    footer: "Powered by yt-dlp and FFmpeg ⚡",
+    footerBot: "Prefer downloading in Telegram:",
+    botLabel: "🤖 Telegram Bot",
+    unknown: "Unknown",
+  }
+};
+
+var BOT_USERNAME = "__BOT_USERNAME__";
+var S = { L: "ar", jobId: null, url: null, info: null, timer: null };
+
+function t(k){ return I18N[S.L][k] !== undefined ? I18N[S.L][k] : k; }
+
+function applyLang(){
+  document.documentElement.lang = S.L;
+  document.documentElement.dir = S.L === "ar" ? "rtl" : "ltr";
+  document.title = t("title");
+  document.getElementById("heroTitle").innerHTML = t("heroTitle");
+  document.getElementById("heroSub").textContent = t("heroSub");
+  document.getElementById("url").placeholder = t("inputPh");
+  document.getElementById("go").innerHTML = t("goBtn");
+  document.getElementById("langBtn").textContent = S.L === "ar" ? "English" : "العربية";
+  document.querySelectorAll("[data-i18n]").forEach(function(el){ el.textContent = t(el.getAttribute("data-i18n")); });
+  var botVisible = BOT_USERNAME && BOT_USERNAME !== "__BOT_USERNAME__";
+  document.getElementById("botLink").classList.toggle("hidden", !botVisible);
+  document.getElementById("footerBotLink").classList.toggle("hidden", !botVisible);
+  document.getElementById("footerBotLink").textContent = t("botLabel");
+  if (botVisible){
+    var href = "https://t.me/" + BOT_USERNAME;
+    document.getElementById("botLink").href = href;
+    document.getElementById("footerBotLink").href = href;
+  }
+  if (S.info) renderInfo(S.info);
+}
+
+/* ── helpers ──────────────────────────────────────────────────────── */
+function fmtBytes(b){
+  if (b === null || b === undefined) return "—";
+  var u = ["B","KB","MB","GB","TB"], i = 0;
+  while (b >= 1024 && i < u.length - 1){ b /= 1024; i++; }
+  return (i === 0 ? b : b.toFixed(1)) + " " + u[i];
+}
+function fmtDuration(sec){
+  if (!sec) return "—";
+  sec = Math.round(sec);
+  var h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
+  return (h ? h + ":" + String(m).padStart(2,"0") : m) + ":" + String(s).padStart(2,"0");
+}
+function esc(s){ return String(s||"").replace(/[&<>"']/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+
+function showView(html){
+  var v = document.getElementById("views");
+  v.innerHTML = html;
+  v.scrollIntoView({behavior:"smooth", block:"nearest"});
+}
+function loaderCard(){
+  return '<div class="card center">' +
+    '<div class="spinner"></div>' +
+    '<div class="loading-title">' + t("loading") + '</div>' +
+    '<div class="loading-sub">' + t("loadingSub") + '</div></div>';
+}
+
+/* ── main flow ────────────────────────────────────────────────────── */
+document.getElementById("go").addEventListener("click", go);
+document.getElementById("url").addEventListener("keydown", function(e){ if (e.key === "Enter") go(); });
+document.getElementById("langBtn").addEventListener("click", function(){
+  S.L = S.L === "ar" ? "en" : "ar";
+  try { localStorage.setItem("vd_lang", S.L); } catch(e){}
+  applyLang();
+});
+
+function go(){
+  var url = document.getElementById("url").value.trim();
+  if (!url){ shakeInput(); return; }
+  if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+  document.getElementById("url").value = url;
+  S.url = url;
+  showView(loaderCard());
+  fetch("/api/info?url=" + encodeURIComponent(url))
+    .then(function(r){ return r.json().then(function(d){ return {ok: r.ok, d: d}; }); })
+    .then(function(res){
+      if (!res.d.ok) throw new Error(res.d.error || "error");
+      S.info = res.d.info;
+      renderInfo(res.d.info);
+    })
+    .catch(function(err){ renderError(err.message || "error"); });
+}
+function shakeInput(){
+  var s = document.getElementById("url");
+  s.style.borderColor = "var(--err)";
+  s.style.animation = "none"; s.offsetHeight;
+  s.style.animation = "shake .4s ease";
+  setTimeout(function(){ s.style.borderColor = ""; }, 700);
+}
+
+function renderInfo(info){
+  var items = [];
+  var bestBtn = '<button class="q-btn best" onclick="startDownload(S.url,\'video\',null)">' +
+    '<div class="q-h">' + t("best") + '</div>' +
+    '<div class="q-s">' + (info.best_height ? info.best_height + "p" : "—") + " · " + esc(info.best_size) + '</div></button>';
+  items.push(bestBtn);
+  (info.qualities || []).forEach(function(q){
+    if (!q.height) return;
+    items.push('<button class="q-btn" onclick="startDownload(S.url,\'video\',' + q.height + ')">' +
+      '<div class="q-h">' + q.height + 'p</div><div class="q-s">' + esc(q.size) + '</div></button>');
+  });
+  if (info.has_audio){
+    items.push('<button class="q-btn audio" onclick="startDownload(S.url,\'audio\',null)">' +
+      '<div class="q-h">' + t("audio") + '</div><div class="q-s">' + esc(info.audio_size || "") + '</div></button>');
+  }
+  var thumb = info.thumbnail ? '<img class="thumb" src="' + esc(info.thumbnail) + '" onerror="this.style.display=\'none\'" loading="lazy">' : '';
+  var html =
+    '<div class="card">' +
+      '<div class="info-title">' + t("infoTitle") + '</div>' +
+      '<div style="height:14px"></div>' +
+      '<div class="info-grid">' +
+        '<div>' + thumb + '</div>' +
+        '<div>' +
+          '<div class="info-title">' + esc(info.title || t("unknown")) + '</div>' +
+          '<div class="info-meta">' +
+            '<span class="meta-chip">' + t("channel") + ': ' + esc(info.channel || t("unknown")) + '</span>' +
+            '<span class="meta-chip">' + t("duration") + ': ' + esc(info.duration) + '</span>' +
+            '<span class="meta-chip">' + t("size") + ': ~' + esc(info.best_size) + '</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="quality-title">' + t("qualityTitle") + '</div>' +
+      '<div class="quality-grid">' + items.join("") + '</div>' +
+    '</div>';
+  showView(html);
+}
+
+/* ── download job ─────────────────────────────────────────────────── */
+function startDownload(url, mode, height){
+  S.url = url;
+  showView(loaderCard());
+  fetch("/api/download", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({url: url, mode: mode, height: height})
+  })
+  .then(function(r){ return r.json().then(function(d){ return {status: r.status, d: d}; }); })
+  .then(function(res){
+    if (!res.d.ok){
+      if (res.status === 409) showBusy();
+      else throw new Error(res.d.error || "error");
+      return;
+    }
+    S.jobId = res.d.job_id;
+    startPolling();
+  })
+  .catch(function(err){ renderError(err.message || "error"); });
+}
+
+function startPolling(){
+  setProgressCard(0);
+  stopPolling();
+  S.timer = setInterval(function(){ pollOnce(); }, 1500);
+  pollOnce();
+}
+function stopPolling(){ if (S.timer){ clearInterval(S.timer); S.timer = null; } }
+
+function pollOnce(){
+  if (!S.jobId) return;
+  fetch("/api/progress/" + encodeURIComponent(S.jobId))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (!d.ok) { stopPolling(); renderError("error"); return; }
+      if (d.state === "done"){ stopPolling(); renderDone(d); }
+      else if (d.state === "error"){ stopPolling(); renderError(d.error || "error"); }
+      else if (d.state === "cancelled"){ stopPolling(); renderError(t("cancelled")); }
+      else { setProgressCard(d.progress || 0, d); }
+    })
+    .catch(function(){ /* transient — keep polling */ });
+}
+
+function setProgressCard(pct, d){
+  var label = (d && d.state === "processing") ? t("processing") : t("downloading");
+  var meta = '';
+  if (d && d.downloaded !== undefined){
+    meta = '<div class="prog-meta">' +
+      '<span>' + fmtBytes(d.downloaded) + ' ' + t("of") + ' ' + fmtBytes(d.total) + '</span>' +
+      (d.speed ? '<span>' + t("speed") + ': ' + fmtBytes(d.speed) + '/s</span>' : '') +
+      (d.eta ? '<span>' + t("eta") + ': ' + fmtDuration(d.eta) + '</span>' : '') +
+      '</div>';
+  }
+  var html =
+    '<div class="card">' +
+      '<div class="prog-head"><span class="prog-state">' + label + '</span><span class="prog-pct">' + Math.round(pct) + '%</span></div>' +
+      '<div class="prog-track"><div class="prog-fill" style="width:' + Math.max(2, pct) + '%"></div></div>' +
+      meta +
+      '<div class="prog-actions"><button class="danger-btn" onclick="cancelJob()">' + t("cancel") + '</button></div>' +
+    '</div>';
+  showView(html);
+}
+
+function cancelJob(){
+  if (!S.jobId) return;
+  fetch("/api/cancel/" + encodeURIComponent(S.jobId), {method: "POST"});
+  stopPolling();
+  showView('<div class="card center"><div class="err-icon">🚫</div><div class="err-title">' + t("cancelled") + '</div></div>');
+  S.jobId = null;
+}
+
+function renderDone(d){
+  saveHistory(d.title, S.jobId);
+  var fileUrl = "/api/file/" + encodeURIComponent(S.jobId);
+  var bot = '';
+  if (BOT_USERNAME && BOT_USERNAME !== "__BOT_USERNAME__"){
+    bot = '<a class="soft-btn" href="https://t.me/' + BOT_USERNAME + '" target="_blank" rel="noopener">' + t("openBot") + '</a>';
+  }
+  var html =
+    '<div class="card done-wrap">' +
+      '<div class="check"><span class="pulse-ring"></span>' +
+        '<svg viewBox="0 0 100 100">' +
+          '<circle class="ring" cx="50" cy="50" r="46"/>' +
+          '<circle class="ring2" cx="50" cy="50" r="46"/>' +
+          '<path class="tick" d="M28 52 L44 68 L74 36"/>' +
+        '</svg></div>' +
+      '<div class="done-title">' + t("done") + '</div>' +
+      '<div class="done-file">' + esc(d.title || d.filename || "") + '</div>' +
+      '<div class="done-actions">' +
+        '<a class="gold-btn" href="' + fileUrl + '" download>' + t("download") + '</a>' +
+        bot +
+        '<button class="soft-btn" onclick="resetAll()">' + t("newDownload") + '</button>' +
+      '</div>' +
+    '</div>';
+  showView(html);
+}
+
+function renderError(msg){
+  var m = msg || "error";
+  var html =
+    '<div class="card">' +
+      '<div class="err-icon">⚠️</div>' +
+      '<div class="err-title">' + t("error") + '</div>' +
+      '<div class="err-msg">' + esc(m) + '</div>' +
+      '<div class="err-actions">' +
+        '<button class="gold-btn" onclick="resetAll()">' + t("newDownload") + '</button>' +
+        '<button class="soft-btn" onclick="go()">' + t("tryAgain") + '</button>' +
+      '</div>' +
+    '</div>';
+  showView(html);
+}
+function showBusy(){
+  var html =
+    '<div class="card center">' +
+      '<div class="spinner"></div>' +
+      '<div class="loading-title">' + t("busy") + '</div>' +
+      '<div class="loading-sub">' + t("busySub") + '</div>' +
+      '<div class="err-actions"><button class="gold-btn" onclick="resetAll()">' + t("tryAgain") + '</button></div>' +
+    '</div>';
+  showView(html);
+}
+
+function resetAll(){
+  stopPolling();
+  S.jobId = null; S.info = null;
+  document.getElementById("url").value = "";
+  document.getElementById("views").innerHTML = "";
+  document.getElementById("url").focus();
+}
+
+/* ── history (localStorage) ──────────────────────────────────────── */
+function saveHistory(title, jobId){
+  var arr = [];
+  try { arr = JSON.parse(localStorage.getItem("vd_hist") || "[]"); } catch(e){}
+  arr.unshift({title: title || "video", id: jobId, ts: Date.now()});
+  try { localStorage.setItem("vd_hist", JSON.stringify(arr.slice(0, 8))); } catch(e){}
+  renderHistory();
+}
+function renderHistory(){
+  var arr = [];
+  try { arr = JSON.parse(localStorage.getItem("vd_hist") || "[]"); } catch(e){}
+  var box = document.getElementById("historyList");
+  var sec = document.getElementById("historySec");
+  if (!arr.length){ sec.classList.add("hidden"); return; }
+  sec.classList.remove("hidden");
+  box.innerHTML = arr.map(function(h){
+    return '<div class="hist-item">' +
+      '<span class="t">' + esc(h.title) + '</span>' +
+      '<a href="/api/file/' + encodeURIComponent(h.id) + '" download>' + t("downloadAgain") + ' ⬇️</a>' +
+      '</div>';
+  }).join("");
+}
+
+/* ── boot ─────────────────────────────────────────────────────────── */
+(function init(){
+  var q = new URLSearchParams(location.search);
+  if (q.get("lang")) S.L = q.get("lang") === "en" ? "en" : "ar";
+  else { try { S.L = localStorage.getItem("vd_lang") || "ar"; } catch(e){ S.L = "ar"; } }
+  applyLang();
+  renderHistory();
+  var url = q.get("url");
+  if (url){ document.getElementById("url").value = url; go(); }
+  else if (q.get("job")){
+    S.jobId = q.get("job");
+    startPolling();
+  }
+})();
+</script>
+</body>
+</html>

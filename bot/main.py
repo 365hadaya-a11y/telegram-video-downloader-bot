@@ -73,6 +73,15 @@ async def main() -> None:
     await db.connect()
 
     ytdlp = YtDlpService(settings)
+    web_manager = None
+    if settings.web_enabled:
+        from .web.manager import WebDownloadManager
+
+        web_manager = WebDownloadManager(settings, ytdlp)
+        logger.info(
+            "Web download site enabled — base: %s",
+            settings.web_base or "(derived from WEBHOOK_URL)",
+        )
     stickers = StickerService(settings, db)
     queue = DownloadQueue(settings.download_workers)
     downloader = DownloadService(settings, db, ytdlp, stickers, queue)
@@ -94,6 +103,7 @@ async def main() -> None:
         cleanup=cleanup,
         subscription=subscription,
         broadcast=broadcast,
+        web=web_manager,
     )
 
     bot = Bot(
@@ -115,6 +125,9 @@ async def main() -> None:
     logger.info("Bot is ready — %d admin(s), %d worker(s)", len(settings.admin_ids), settings.download_workers)
 
     cleanup_task = asyncio.create_task(cleanup.run())
+    web_cleanup_task = None
+    if web_manager is not None:
+        web_cleanup_task = asyncio.create_task(web_manager.cleanup_loop())
     try:
         if settings.webhook_mode:
             await _serve_webhook(bot, dp, services)
@@ -122,6 +135,8 @@ async def main() -> None:
             await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     finally:
         cleanup_task.cancel()
+        if web_cleanup_task is not None:
+            web_cleanup_task.cancel()
         await db.close()
         await bot.session.close()
 
@@ -140,11 +155,19 @@ async def _serve_webhook(bot: Bot, dp: Dispatcher, services: Services) -> NoRetu
     secret = settings.webhook_secret or secrets.token_urlsafe(32)
     app = web.Application()
 
-    # Health endpoint for the platform's health checks (GET /)
+    # Health endpoint for the platform's health checks
     async def _health(_request: web.Request) -> web.Response:
         return web.Response(text="ok")
 
-    app.router.add_get("/", _health)
+    app.router.add_get("/health", _health)
+
+    # Mount the premium web download site on the same server (shares port 8080)
+    if services.web is not None and settings.web_enabled:
+        from ..web.server import create_web_app
+
+        create_web_app(app, services)
+    else:
+        app.router.add_get("/", _health)
 
     webhook_handler = SimpleRequestHandler(dispatcher=dp, bot=bot, secret_token=secret)
     webhook_handler.register(app, path=settings.webhook_path)

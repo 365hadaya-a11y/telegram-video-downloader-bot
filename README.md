@@ -37,6 +37,7 @@
 | 🎨 **Animated stickers** | Welcome / loading / downloading / uploading / success / error / celebration |
 | 🐳 **Docker-ready** | One command to deploy |
 | 🌐 **Bilingual** | Full **العربية + English** translations, per-user `/language` picker |
+| 🖥️ **Web download site** | A premium animated website served from the **same public URL** as the bot — same yt-dlp engine, same storage |
 
 ---
 
@@ -142,6 +143,12 @@ All settings live in `.env` (see [`.env.example`](.env.example) for full comment
 | `RATE_LIMIT_MAX` / `RATE_LIMIT_WINDOW_SECONDS` | `4` / `3.0` | Message throttle |
 | `CLEANUP_*` | 30 min / 6 h | Temp file sweeper |
 | `FORCE_CHANNEL` | — | Channel users must join first, e.g. `@MyAnnouncements` (see **Forced subscription**) |
+| `WEB_ENABLED` | `true` | Serve the web download site from the same server |
+| `WEB_BASE_URL` | derived | Public base of the site (auto-derived from `WEBHOOK_URL` if empty) |
+| `WEB_MAX_FILE_SIZE_MB` | `2000` | Size cap for website downloads (bigger than Telegram's 50 MB) |
+| `WEB_JOB_TTL_MINUTES` | `120` | Website download files are auto-deleted after this |
+| `WEB_MAX_CONCURRENT_JOBS` | `3` | Simultaneous downloads through the website |
+| `BOT_USERNAME` | — | Shows "open in Telegram" links on the website |
 | `STICKER_*` / `STICKER_SET_NAME` | — | See **Stickers** below |
 
 ---
@@ -189,12 +196,13 @@ bot/
 ├── main.py              # bootstrap & dependency wiring
 ├── config.py            # pydantic-settings (.env) configuration
 ├── database/
-│   └── db.py            # aiosqlite: users, stickers, download log
+│   └── db.py            # aiosqlite: users, stickers, channels, download log
 ├── handlers/
 │   ├── start.py         # /start /help /cancel /language
 │   ├── download.py      # URL messages, hints, unknown commands
 │   ├── callbacks.py     # inline keyboard decisions
-│   └── admin.py         # /stats /setsticker /resetsticker /stickers
+│   ├── admin.py         # /stats /setsticker /setchannel /broadcast…
+│   └── panel.py         # 🛠️ interactive admin control panel (/panel)
 ├── keyboards/
 │   └── inline.py        # callback factory + stylish keyboards
 ├── middlewares/
@@ -205,7 +213,14 @@ bot/
 │   ├── queue.py         # worker-pool download queue
 │   ├── rate_limiter.py  # in-memory sliding window
 │   ├── stickers.py      # env → DB → sticker-set resolution
+│   ├── subscription.py  # multi-channel forced-subscription gate
+│   ├── broadcast.py     # 📣 announcements to every user
 │   └── cleanup.py       # temp sweeper + log pruning
+├── web/
+│   ├── manager.py       # web download jobs (shares the yt-dlp engine)
+│   ├── server.py        # aiohttp routes mounted on the webhook server
+│   └── static/
+│       └── index.html   # 🖥️ premium bilingual animated download page
 └── utils/
     ├── formatters.py    # sizes, durations, progress bars, URLs
     ├── i18n.py          # bilingual strings (العربية + English)
@@ -225,7 +240,7 @@ bot/
 ## ❓ FAQ
 
 **Why is my file over 50 MB rejected?**
-The Telegram Bot API limits uploads to 50 MB unless you run a **local Bot API server**. Set `MAX_FILE_SIZE_MB=50`, or deploy a local server for 2 GB uploads.
+The Telegram Bot API limits uploads to 50 MB unless you run a **local Bot API server**. With the web site enabled, files that exceed the limit are **not lost** — the bot sends you a link to download them from `https://<your-app-url>/` (which supports up to `WEB_MAX_FILE_SIZE_MB`).
 
 **Is the upload progress real?**
 The Bot API exposes **no upload progress**, so the bot plays a polished animation scaled to the file size while it uploads. Download progress, however, is 100% real (driven by yt-dlp hooks).
@@ -297,6 +312,52 @@ The owner gets an interactive panel — one editable message, no command spam:
 - **Channels** — current forced channels, add/remove.
 - **Settings** — key configuration overview.
 - **Language** — the owner's own bot language.
+
+## 🖥️ Web Download Site (موقع التحميل)
+
+A premium, animated download website is served from the **same public URL** as the
+bot's webhook — no extra service, no extra cost. It reuses the **same yt-dlp
+engine and temp storage** as the bot.
+
+> Open **`https://<your-app-url>/`** in any browser. 🌐
+
+```text
+User pastes a URL
+  │
+  ▼ 🔍 /api/info → title · channel · duration · sizes · thumbnail
+  │
+  ▼ 👑 Best Quality · 📺 2160p / 1440p / 1080p / … · 🎵 Audio Only
+  │
+  ▼ ⬇️ POST /api/download → { job_id }
+  │
+  ▼ ⬇️ Animated progress bar (real %) · speed · ETA · ❌ cancel
+  │
+  ▼ 🎉 Done → download straight to disk (up to WEB_MAX_FILE_SIZE_MB)
+```
+
+**How it's linked to the bot**
+
+- The info card now carries a **🌐 موقع التحميل** button (opens the site with your
+  video preloaded).
+- When a finished file **exceeds Telegram's 50 MB limit**, the bot hands you a
+  direct link to grab it from the website instead of failing.
+- The welcome message mentions the site, and the site has an **"open in Telegram"**
+  button back to the bot (set `BOT_USERNAME`).
+- The whole page is **RTL Arabic by default** with a one-tap English toggle,
+  localStorage download history, and a dark glassmorphism design with animated orbs.
+
+**HTTP API** (used by the page; same origin, no auth):
+
+| Route | Method | Purpose |
+|---|---|---|
+| `/` | GET | The download page (RTL العربية / English) |
+| `/health` | GET | `ok` — platform health checks |
+| `/d/{job_id}` | GET | Deep link straight to a finished download |
+| `/api/info?url=…` | GET | Curated video info (cached, rate-limited per IP) |
+| `/api/download` | POST | Start a job → `{job_id}` (409 when busy) |
+| `/api/progress/{job_id}` | GET | Live download state (polled by the page) |
+| `/api/cancel/{job_id}` | POST | Cancel an active job |
+| `/api/file/{job_id}` | GET | Stream the finished file (auto-deleted after TTL) |
 
 ## 📣 Broadcast Announcements (النشرة الإعلانية)
 
