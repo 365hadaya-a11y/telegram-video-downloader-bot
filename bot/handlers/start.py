@@ -9,7 +9,14 @@ from aiogram import F, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.types import CallbackQuery, Message
 
-from ..keyboards.inline import LanguageCB, language_keyboard
+from ..keyboards.inline import (
+    DownloadCB,
+    LanguageCB,
+    language_keyboard,
+    remove_keyboard,
+    welcome_help_keyboard,
+    welcome_keyboard,
+)
 from ..services import Services
 from ..utils.i18n import lang_name, normalize_lang, t
 
@@ -49,14 +56,14 @@ async def on_start(message: Message, services: Services) -> None:
         return
 
     await services.stickers.send(message, message.bot, "welcome")
-    await message.answer(_welcome_text(lang, user.first_name))
+    await message.answer(_welcome_text(lang, user.first_name), reply_markup=welcome_keyboard(lang))
 
 
 @router.message(Command("help"))
 async def on_help(message: Message, services: Services) -> None:
     assert message.from_user is not None
     lang = await _user_lang(services, message.from_user.id)
-    await message.answer(_help_text(lang))
+    await message.answer(_help_text(lang), reply_markup=welcome_help_keyboard(lang))
 
 
 @router.message(Command("cancel"))

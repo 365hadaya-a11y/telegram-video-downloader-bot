@@ -8,7 +8,7 @@ from aiogram import Router
 from aiogram.exceptions import TelegramAPIError
 from aiogram.types import CallbackQuery
 
-from ..keyboards.inline import DownloadCB, remove_keyboard
+from ..keyboards.inline import DownloadCB, remove_keyboard, welcome_help_keyboard
 from ..services import Services
 from ..services.broadcast import BroadcastCB
 from ..services.subscription import JoinCB
@@ -31,6 +31,19 @@ async def on_download_callback(
     services: Services,
 ) -> None:
     user_id = callback.from_user.id
+
+    # ❓ Help button from the welcome keyboard — no session involved
+    if callback_data.action == "help":
+        from .start import _help_text
+
+        lang = await _user_lang(services, user_id)
+        try:
+            await callback.message.edit_text(_help_text(lang), reply_markup=welcome_help_keyboard(lang))
+        except TelegramAPIError:
+            logger.debug("Could not edit help card", exc_info=True)
+        await callback.answer()
+        return
+
     session = services.downloader.sessions.get(user_id)
 
     if session is None:
@@ -52,7 +65,8 @@ async def on_join_check(callback: CallbackQuery, services: Services) -> None:
     """Re-check channel membership after the user presses the join button."""
     user = callback.from_user
     lang = await _user_lang(services, user.id)
-    if await services.subscription.is_member(callback.bot, user.id):
+    missing = await services.subscription.missing_channels(callback.bot, user.id)
+    if not missing:
         try:
             await callback.message.edit_text(
                 t(lang, "access_granted"),
@@ -62,6 +76,13 @@ async def on_join_check(callback: CallbackQuery, services: Services) -> None:
             logger.debug("Could not edit join card", exc_info=True)
         await callback.answer(t(lang, "join_welcome"))
     else:
+        try:
+            await callback.message.edit_text(
+                t(lang, "still_missing", channels=" · ".join(missing)),
+                reply_markup=services.subscription.join_keyboard(lang),
+            )
+        except TelegramAPIError:
+            pass
         await callback.answer(t(lang, "not_joined"), show_alert=True)
 
 

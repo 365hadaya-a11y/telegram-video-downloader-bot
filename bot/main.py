@@ -16,7 +16,7 @@ from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_applicati
 
 from .config import load_settings
 from .database import Database
-from .handlers import admin_router, callbacks_router, download_router, start_router
+from .handlers import admin_router, callbacks_router, download_router, panel_router, start_router
 from .middlewares import ThrottlingMiddleware
 from .services import Services
 from .services.broadcast import BroadcastService
@@ -43,10 +43,13 @@ def _default_commands(lang: str) -> list[BotCommand]:
 def _admin_commands(lang: str) -> list[BotCommand]:
     return [
         *_default_commands(lang),
+        BotCommand(command="panel", description=tr(lang, "cmd_panel")),
         BotCommand(command="broadcast", description=tr(lang, "cmd_broadcast")),
         BotCommand(command="stats", description=tr(lang, "cmd_stats")),
         BotCommand(command="stickers", description=tr(lang, "cmd_stickers")),
         BotCommand(command="setsticker", description=tr(lang, "cmd_setsticker")),
+        BotCommand(command="setchannel", description=tr(lang, "cmd_setchannel")),
+        BotCommand(command="delchannel", description=tr(lang, "cmd_delchannel")),
     ]
 
 
@@ -74,11 +77,12 @@ async def main() -> None:
     queue = DownloadQueue(settings.download_workers)
     downloader = DownloadService(settings, db, ytdlp, stickers, queue)
     cleanup = CleanupService(settings, db)
-    subscription = ForcedSubscription(settings.force_channel)
+    subscription = ForcedSubscription(db, env_channels=settings.all_force_channels)
+    await subscription.refresh_runtime()
     broadcast = BroadcastService(db)
 
     if subscription.enabled:
-        logger.info("Forced channel subscription enabled: %s", subscription.channel_ref)
+        logger.info("Forced channel subscription enabled: %s", subscription.channel_refs_text())
 
     services = Services(
         settings=settings,
@@ -101,7 +105,7 @@ async def main() -> None:
 
     dp.message.middleware(ThrottlingMiddleware(settings))
 
-    for router in (start_router, admin_router, callbacks_router, download_router):
+    for router in (start_router, admin_router, panel_router, callbacks_router, download_router):
         dp.include_router(router)
 
     try:

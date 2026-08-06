@@ -32,7 +32,8 @@
 | 🔁 **Auto-retry** | Exponential back-off on network errors (info + download) |
 | 🗑️ **Self-cleaning** | Per-download temp folders + periodic sweeper + log pruning |
 | 📣 **Broadcast** | One-tap admin announcements (text or media) to every user, with live progress & stop button |
-| 🔒 **Forced channel** | Mandatory channel subscription gate before using the bot (admins exempt) |
+| 🛠️ **Admin panel** | Interactive `/panel` — stats, top users, broadcast, stickers, channels & settings in one editable message |
+| 🔒 **Forced channels** | Mandatory subscription gate to **multiple** channels (admins exempt); add/remove live via `/setchannel` |
 | 🎨 **Animated stickers** | Welcome / loading / downloading / uploading / success / error / celebration |
 | 🐳 **Docker-ready** | One command to deploy |
 | 🌐 **Bilingual** | Full **العربية + English** translations, per-user `/language` picker |
@@ -170,7 +171,10 @@ No stickers configured? No problem — the bot gracefully falls back to premium 
 | `/language` | everyone | Switch between العربية and English 🌐 |
 | `/cancel` | everyone | Cancel the active download |
 | `/broadcast <text>` | admins | Announce text — or reply to a photo/video/file to announce media — to every user (live progress + 🛑 stop) |
+| `/panel` | admins | 🛠️ Interactive admin control panel (stats, users, broadcast, stickers, channels, settings, language) |
 | `/stats` | admins | Users, downloads, queue, temp usage |
+| `/setchannel @channel` | admins | Add a forced-subscription channel (live, no restart) |
+| `/delchannel @channel` | admins | Remove a forced-subscription channel (env channels are protected) |
 | `/setsticker <key>` | admins | Assign a sticker (reply to a sticker) |
 | `/resetsticker <key>` | admins | Unset a sticker |
 | `/stickers` | admins | Show the sticker mapping |
@@ -237,24 +241,62 @@ It's designed for private chats (like all premium downloader bots). Use it in DM
 
 ---
 
-## 🔒 Forced Channel Subscription (الاشتراك الإجباري)
+## 🔒 Forced Channel Subscription (الاشتراك الإجباري) — multi-channel
 
-Set `FORCE_CHANNEL` in `.env` (e.g. `@MyAnnouncements` or `-1001234567890`) and the bot will
-require every user to join that channel before downloading:
+Set `FORCE_CHANNELS` in `.env` (comma-separated or JSON) and the bot will require every
+user to join **all** of those channels before downloading:
+
+```env
+FORCE_CHANNELS=@MyAnnouncements, @SecondChannel
+# legacy single-channel option still works:  FORCE_CHANNEL=@MyAnnouncements
+```
 
 ```text
 /start
   │
   ▼ 🔒 Channel subscription required
-  ▼ [🔗 Join Channel] [✅ I've Joined]
+  ▼ 1. Join @MyAnnouncements  [🔗 Join @MyAnnouncements]
+  ▼ 2. Join @SecondChannel    [🔗 Join @SecondChannel]
+  ▼                              [✅ I've Joined]
   │
   ▼ ✅ Access granted! → send your video link 🎬
 ```
 
+- **Runtime management** — the owner can add channels live with `/setchannel @channel`
+  and remove them with `/delchannel @channel` (or from the admin panel). These are stored
+  in SQLite — no restart, no `.env` edits. Channels from the env config are protected
+  from removal.
 - Admins (from `ADMIN_IDS`) are always exempt.
-- The gate is a no-op when `FORCE_CHANNEL` is empty.
-- If the channel handle is wrong, the bot logs a warning and skips checks (it never bricks itself).
-- 💡 Use a public **@username** for `FORCE_CHANNEL` so the join card shows a tappable **Join Channel** button (numeric channel IDs can't be turned into links).
+- The gate is a no-op when no channels are configured.
+- If a channel handle is wrong, the bot logs a warning and skips that channel (it never bricks itself).
+- 💡 Use public **@usernames** so the join card shows tappable buttons (numeric channel IDs can't be turned into links).
+
+## 🛠️ Admin Control Panel (لوحة تحكم المدير)
+
+The owner gets an interactive panel — one editable message, no command spam:
+
+```text
+/panel
+  │
+  ▼ 🛠️ Admin Control Panel
+  ┌────────────┬────────────┐
+  │ 📊 Stats   │ 👥 Users   │
+  ├────────────┼────────────┤
+  │ 📣 Broadcast│ 🎨 Stickers│
+  ├────────────┼────────────┤
+  │ 🔒 Channels│ ⚙️ Settings │
+  ├────────────┴────────────┤
+  │ 🌐 Language   ❌ Close  │
+  └─────────────────────────┘
+```
+
+- **Stats** — users, downloads, queue, temp usage (🔄 refresh button).
+- **Users** — total users + top downloaders ranking.
+- **Broadcast** — quick reference for `/broadcast`.
+- **Stickers** — live mapping status.
+- **Channels** — current forced channels, add/remove.
+- **Settings** — key configuration overview.
+- **Language** — the owner's own bot language.
 
 ## 📣 Broadcast Announcements (النشرة الإعلانية)
 

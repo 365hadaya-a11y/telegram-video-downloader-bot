@@ -207,6 +207,47 @@ async def on_broadcast(message: Message, command: CommandObject, services: Servi
         await message.answer(final)
 
 
+@router.message(Command("setchannel"))
+async def on_set_channel(message: Message, command: CommandObject, services: Services) -> None:
+    """Add a forced-subscription channel at runtime (admin panel / /setchannel)."""
+    assert message.from_user is not None
+    lang = await _admin_lang(services, message.from_user.id)
+    if not _is_admin(services, message.from_user.id):
+        await message.answer(t(lang, "admins_only"))
+        return
+
+    ref = (command.args or "").strip()
+    if not ref:
+        await message.answer(t(lang, "setchannel_usage"))
+        return
+    if ref in services.subscription.channels:
+        await message.answer(t(lang, "setchannel_dup", channel=ref))
+        return
+    await services.subscription.add_channel(ref, message.from_user.id)
+    await message.answer(t(lang, "setchannel_added", channel=ref))
+
+
+@router.message(Command("delchannel"))
+async def on_del_channel(message: Message, command: CommandObject, services: Services) -> None:
+    """Remove a forced-subscription channel (runtime only; env channels stay)."""
+    assert message.from_user is not None
+    lang = await _admin_lang(services, message.from_user.id)
+    if not _is_admin(services, message.from_user.id):
+        await message.answer(t(lang, "admins_only"))
+        return
+
+    ref = (command.args or "").strip()
+    if not ref:
+        await message.answer(t(lang, "setchannel_usage"))
+        return
+    if ref in services.subscription.env_channels:
+        await message.answer(t(lang, "delchannel_env_protected", channel=ref))
+        return
+    removed = await services.subscription.remove_channel(ref)
+    key = "delchannel_removed" if removed else "delchannel_missing"
+    await message.answer(t(lang, key, channel=ref))
+
+
 @router.message(Command("stickers"))
 async def on_list_stickers(message: Message, services: Services) -> None:
     assert message.from_user is not None

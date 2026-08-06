@@ -67,7 +67,9 @@ class Settings(BaseSettings):
 
     # ── Forced channel subscription ────────────────────────────────
     # e.g. "@MyAnnouncements" or "-1001234567890". Empty disables the gate.
-    force_channel: str | None = None
+    # Multiple channels: FORCE_CHANNELS="@A, -1001234567890" or JSON.
+    force_channel: str | None = None  # legacy single-channel config
+    force_channels: list[str] = Field(default_factory=list)
 
     # ── Webhook (production / Koyeb) ───────────────────────────────
     # Polling is the default for local dev. Set WEBHOOK_MODE=true on a
@@ -103,9 +105,34 @@ class Settings(BaseSettings):
             return [int(part) for part in text.split(",") if part.strip()]
         return value  # type: ignore[return-value]
 
+    @field_validator("force_channels", mode="before")
+    @classmethod
+    def _parse_force_channels(cls, value: object) -> list[str]:
+        """Accept JSON array or comma-separated channel refs."""
+        if isinstance(value, str):
+            text = value.strip()
+            if not text:
+                return []
+            if text.startswith("["):
+                raw = json.loads(text)
+            else:
+                raw = text.split(",")
+            return [part.strip() for part in raw if part and part.strip()]
+        return value  # type: ignore[return-value]
+
     @property
     def max_file_size_bytes(self) -> int:
         return self.max_file_size_mb * 1024 * 1024
+
+    @property
+    def all_force_channels(self) -> list[str]:
+        """Combined list: legacy ``force_channel`` + new ``force_channels``."""
+        channels = list(self.force_channels)
+        if self.force_channel and self.force_channel.strip():
+            ref = self.force_channel.strip()
+            if ref not in channels:
+                channels.insert(0, ref)
+        return channels
 
 
 @lru_cache

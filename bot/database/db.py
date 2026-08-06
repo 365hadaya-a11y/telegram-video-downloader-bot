@@ -44,6 +44,12 @@ CREATE TABLE IF NOT EXISTS downloads_log (
 
 CREATE INDEX IF NOT EXISTS idx_downloads_user_time
     ON downloads_log (user_id, created_at);
+
+CREATE TABLE IF NOT EXISTS channels (
+    ref        TEXT PRIMARY KEY,
+    added_by   INTEGER,
+    added_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
 """
 
 
@@ -77,6 +83,25 @@ class Database:
         if "lang" not in columns:
             await self.conn.execute("ALTER TABLE users ADD COLUMN lang TEXT DEFAULT 'ar'")
             logger.info("Migrated users table: added lang column")
+
+    # ── Runtime channels (managed via /setchannel & the admin panel) ──
+
+    async def add_channel(self, ref: str, added_by: int) -> None:
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO channels (ref, added_by) VALUES (?, ?)",
+            (ref, added_by),
+        )
+        await self.conn.commit()
+
+    async def remove_channel(self, ref: str) -> bool:
+        cursor = await self.conn.execute("DELETE FROM channels WHERE ref = ?", (ref,))
+        await self.conn.commit()
+        return cursor.rowcount > 0
+
+    async def list_channels(self) -> list[str]:
+        cursor = await self.conn.execute("SELECT ref FROM channels ORDER BY added_at")
+        rows = await cursor.fetchall()
+        return [str(row["ref"]) for row in rows]
 
     # ── Language ──────────────────────────────────────────────────
 
@@ -196,6 +221,22 @@ class Database:
         )
         row = await cursor.fetchone()
         return int(row["c"]) if row else 0
+
+    async def top_users(self, limit: int = 5) -> list[tuple[int, str | None, int]]:
+        """Top users by successful downloads: [(user_id, username, count)]."""
+        cursor = await self.conn.execute(
+            """
+            SELECT u.id, u.username, COUNT(l.id) AS c
+            FROM downloads_log l JOIN users u ON u.id = l.user_id
+            WHERE l.success = 1
+            GROUP BY u.id, u.username
+            ORDER BY c DESC
+            LIMIT ?
+            """,
+            (limit,),
+        )
+        rows = await cursor.fetchall()
+        return [(int(r["id"]), str(r["username"]) if r["username"] else None, int(r["c"])) for r in rows]
 
     async def prune_logs(self, days: int = 30) -> None:
         await self.conn.execute(

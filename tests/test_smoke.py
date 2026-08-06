@@ -23,10 +23,18 @@ from bot.config import Settings, load_settings
 from bot.database import Database
 from bot.keyboards.inline import (
     DownloadCB,
+    LanguageCB,
+    PanelCB,
+    admin_panel_keyboard,
     cancel_keyboard,
     info_keyboard,
+    language_keyboard,
+    panel_channels_keyboard,
+    panel_language_keyboard,
+    panel_stats_keyboard,
     quality_keyboard,
     remove_keyboard,
+    welcome_keyboard,
 )
 from bot.services.broadcast import BroadcastCB, BroadcastService, broadcast_cancel_keyboard
 from bot.services.queue import DownloadQueue
@@ -142,14 +150,38 @@ qkb = quality_keyboard([2160, 1080, 720], page=0, num_pages=1, size_map={1080: "
 check("quality keyboard", len(qkb.inline_keyboard) >= 3)
 check("remove_keyboard empty", remove_keyboard().inline_keyboard == [])
 
-# ── Forced subscription (disabled path needs no bot) ──
-fs_off = ForcedSubscription(None)
+# ── Admin panel keyboards (لوحة تحكم المدير) ──
+from bot.database import Database as _Db
+
+_panel_kb = admin_panel_keyboard()
+check("panel main keyboard", len(_panel_kb.inline_keyboard) >= 5)
+check("panel stats keyboard", len(panel_stats_keyboard().inline_keyboard) >= 2)
+check("panel channels keyboard", len(panel_channels_keyboard(["@A", "@B"]).inline_keyboard) == 4)  # 2 del + add + back/close
+check("panel language keyboard", len(panel_language_keyboard().inline_keyboard) >= 2)
+_panel_cb = PanelCB(view="stats", action="open").pack()
+check("panel cb round-trip", PanelCB.unpack(_panel_cb).view == "stats")
+_lang_cb = LanguageCB(lang="en").pack()
+check("language cb round-trip", LanguageCB.unpack(_lang_cb).lang == "en")
+check("welcome keyboard", len(welcome_keyboard().inline_keyboard) == 1)
+
+# ── Forced subscription (multi-channel; disabled path needs no bot) ──
+fs_off = ForcedSubscription(_Db(Path(".") / "nope.db"), env_channels=[])
 check("sub disabled", fs_off.enabled is False)
-fs_on = ForcedSubscription("@MyAnnouncements")
-check("sub enabled", fs_on.enabled is True and fs_on.channel_ref == "@MyAnnouncements")
+fs_on = ForcedSubscription(_Db(Path(".") / "nope.db"), env_channels=["@A", "@B"])
+check("sub enabled multi", fs_on.enabled is True and fs_on.channels == ["@A", "@B"])
 join_kb = fs_on.join_keyboard()
-check("join kb rows", len(join_kb.inline_keyboard) == 2)
+check("join kb per-channel rows", len(join_kb.inline_keyboard) == 3)  # @A, @B, I've joined
+join_msg = fs_on.join_message()
+check("join msg lists channels", "@A" in join_msg and "@B" in join_msg)
 check("broadcast cancel kb", len(broadcast_cancel_keyboard().inline_keyboard) == 1)
+
+# multi-channel env config parsing
+from bot.config import Settings as _Settings
+
+s_multi = _Settings(_env_file=None, BOT_TOKEN="t", force_channels="@X, @Y")
+check("force_channels parsed", s_multi.all_force_channels == ["@X", "@Y"])
+s_legacy = _Settings(_env_file=None, BOT_TOKEN="t", force_channel="@Old")
+check("legacy force_channel", s_legacy.all_force_channels == ["@Old"])
 
 
 # ── Everything async runs in ONE event loop (Windows-friendly) ──
@@ -192,6 +224,27 @@ async def run_all() -> None:
     # Forced subscription disabled path (no bot needed)
     check("sub disabled passes", await fs_off.is_member(None, 1) is True)  # type: ignore[arg-type]
 
+    # Runtime channel management (DB-backed, used by /setchannel + panel)
+    with tempfile.TemporaryDirectory() as tmp:
+        cdb = Database(Path(tmp) / "chan.db")
+        await cdb.connect()
+        sub = ForcedSubscription(cdb, env_channels=["@EnvA"])
+        await sub.refresh_runtime()
+        check("runtime sub initial", sub.channels == ["@EnvA"])
+        added = await sub.add_channel("@RuntimeB", 111)
+        check("runtime add channel", added is True and sub.channels == ["@EnvA", "@RuntimeB"])
+        dup = await sub.add_channel("@RuntimeB", 111)
+        check("runtime dup rejected", dup is False)
+        # env channels are protected from removal
+        env_removed = await sub.remove_channel("@EnvA")
+        check("env channel protected", env_removed is False and sub.channels == ["@EnvA", "@RuntimeB"])
+        rt_removed = await sub.remove_channel("@RuntimeB")
+        check("runtime channel removed", rt_removed is True and sub.channels == ["@EnvA"])
+        # dedup when env + db overlap
+        await sub.add_channel("@EnvA", 111)
+        check("dedup overlap", sub.channels == ["@EnvA"])
+        await cdb.close()
+
     # Database
     with tempfile.TemporaryDirectory() as tmp:
         db = Database(Path(tmp) / "test.db")
@@ -217,7 +270,14 @@ async def run_all() -> None:
         await db.prune_logs(days=1)
         check("prune", await db.total_downloads() == 1)
         check("all_user_ids", await db.all_user_ids() == [1])
+        # top_users for the admin panel
+        await db.upsert_user(2, "bob", "Bob", None)
+        await db.log_download(2, "https://y", "video", 720, 200, 120, True)
+        await db.log_download(2, "https://z", "audio", None, 50, 60, True)
+        top = await db.top_users(limit=5)
+        check("top_users order", len(top) == 2 and top[0][0] == 2 and top[0][2] == 2)
         await db.remove_user(1)
+        await db.remove_user(2)
         check("remove_user", await db.users_count() == 0)
         await db.close()
 
