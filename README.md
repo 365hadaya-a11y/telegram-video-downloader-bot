@@ -76,6 +76,7 @@ Send a video URL
 
 - **Python 3.12**
 - **[FFmpeg](https://ffmpeg.org/download.html)** — required for merging video+audio and MP3 extraction
+- **Deno** *(recommended)* — JS runtime used by yt-dlp for YouTube extraction; installed automatically in the Docker image
 - A Telegram bot token from [@BotFather](https://t.me/BotFather)
 
 ### 1. Install
