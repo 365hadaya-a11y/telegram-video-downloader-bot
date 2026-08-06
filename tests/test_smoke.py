@@ -39,6 +39,7 @@ from bot.keyboards.inline import (
     web_offer_keyboard,
     welcome_keyboard,
 )
+from bot.services import Services
 from bot.services.broadcast import BroadcastCB, BroadcastService, broadcast_cancel_keyboard
 from bot.services.queue import DownloadQueue
 from bot.services.rate_limiter import RateLimiter
@@ -295,6 +296,34 @@ async def run_all() -> None:
         await db.remove_user(2)
         check("remove_user", await db.users_count() == 0)
         await db.close()
+
+    # ── aiohttp app assembly (webhook + web site mount) ──
+    from bot.main import build_aiohttp_app
+    from bot.web.manager import WebDownloadManager
+    from aiogram import Bot as AiogramBot
+    from aiogram import Dispatcher as AiogramDispatcher
+
+    class _MountFakeYtdlp:
+        async def get_video_info(self, url: str) -> dict:
+            return {"title": "T", "id": "v1", "formats": [], "thumbnails": []}
+
+        async def download(self, *args, **kwargs):
+            raise RuntimeError("no")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        s3 = _Settings(_env_file=None, BOT_TOKEN="t", webhook_url="https://x.example.com/webhook")
+        app, _secret = build_aiohttp_app(
+            AiogramBot("123456:TESTTOKEN"),
+            AiogramDispatcher(),
+            Services(
+                settings=s3, db=None, ytdlp=_MountFakeYtdlp(), stickers=None,
+                queue=None, downloader=None, cleanup=None, subscription=None, broadcast=None,
+                web=WebDownloadManager(s3, _MountFakeYtdlp()),
+            ),
+        )
+        routes = {r.resource.canonical for r in app.router.routes() if r.resource}
+        check("app routes include web site", "/" in routes and "/health" in routes and "/api/info" in routes)
+        check("app routes include webhook", "/webhook" in routes)
 
     # ── Web download manager (shares the yt-dlp engine) ──
     from bot.web.manager import WebDownloadManager, _validate_url

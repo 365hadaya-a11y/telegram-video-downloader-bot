@@ -141,17 +141,13 @@ async def main() -> None:
         await bot.session.close()
 
 
-async def _serve_webhook(bot: Bot, dp: Dispatcher, services: Services) -> NoReturn:
-    """Run an aiohttp server that feeds Telegram updates into the dispatcher.
+def build_aiohttp_app(bot: Bot, dp: Dispatcher, services: Services) -> tuple[web.Application, str]:
+    """Assemble the aiohttp app: webhook handler + optional web download site.
 
-    Used on Koyeb (and other hosts) where a public HTTPS URL is available:
-    Telegram pushes updates to ``WEBHOOK_URL`` — inbound traffic keeps the
-    instance awake and the public URL doubles as a health-check target.
+    Returns ``(app, secret)`` without starting the server or registering the
+    webhook — used by :func:`_serve_webhook` and covered by smoke tests.
     """
     settings = services.settings
-    if not settings.webhook_url:
-        raise ValueError("WEBHOOK_URL is required when WEBHOOK_MODE=true")
-
     secret = settings.webhook_secret or secrets.token_urlsafe(32)
     app = web.Application()
 
@@ -163,7 +159,7 @@ async def _serve_webhook(bot: Bot, dp: Dispatcher, services: Services) -> NoRetu
 
     # Mount the premium web download site on the same server (shares port 8080)
     if services.web is not None and settings.web_enabled:
-        from ..web.server import create_web_app
+        from .web.server import create_web_app
 
         create_web_app(app, services)
     else:
@@ -172,6 +168,21 @@ async def _serve_webhook(bot: Bot, dp: Dispatcher, services: Services) -> NoRetu
     webhook_handler = SimpleRequestHandler(dispatcher=dp, bot=bot, secret_token=secret)
     webhook_handler.register(app, path=settings.webhook_path)
     setup_application(app, dp)
+    return app, secret
+
+
+async def _serve_webhook(bot: Bot, dp: Dispatcher, services: Services) -> NoReturn:
+    """Run an aiohttp server that feeds Telegram updates into the dispatcher.
+
+    Used on Koyeb (and other hosts) where a public HTTPS URL is available:
+    Telegram pushes updates to ``WEBHOOK_URL`` — inbound traffic keeps the
+    instance awake and the public URL doubles as a health-check target.
+    """
+    settings = services.settings
+    if not settings.webhook_url:
+        raise ValueError("WEBHOOK_URL is required when WEBHOOK_MODE=true")
+
+    app, secret = build_aiohttp_app(bot, dp, services)
 
     await bot.set_webhook(
         url=settings.webhook_url,
